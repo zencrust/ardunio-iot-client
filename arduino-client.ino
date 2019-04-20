@@ -1,25 +1,22 @@
-#include <ArduinoJson.h>
+#include <FS.h>          // this needs to be first, or it all crashes and burns...
+
+/* this code uses development version of WiFiManager.
+download https://github.com/tzapu/WiFiManager/archive/development.zip and extract
+it to %HOMEPATH%\\Documents\\Arduino\\libraries\\WiFiManager.
+
+This is true untill WiFiManager released version supports esp32 by default
+*/
+#include <WiFiManager.h> 
+#include <ArduinoJson.h> // https://github.com/bblanchon/ArduinoJson
+
 #include <SD.h>
-#include <SPI.h>
 #include <string>
-    
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-//needed for library
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
 
-//flag for saving data
-bool shouldSaveConfig = false;
 
 
 #define CONFIG_FILE "/config.json"
-void callback(const char* topic, byte* payload, unsigned int length);
-
-
-//define your default values here, if there are different values in config.json, they are overwritten.
-//char mqtt_server[40];
+void callback(const char* topic, byte* payload, uint32_t length);
 
 struct Config {
     char mqtt_server[40];
@@ -33,7 +30,8 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 Config config = { "ps.mqtt", 1883, "mqtt_user", "mqtt_pass", "dev1" };                         // <- global configuration object
 
-
+//flag for saving data
+bool shouldSaveConfig = false;
 //callback notifying us of the need to save config
 void saveConfigCallback() {
     Serial.println("Should save config");
@@ -70,8 +68,7 @@ void loadConfiguration(const char* filename, Config& config) {
 }
 
 
-void saveConfigutation(const char* filename, Config& config)
-{
+void saveConfigutation(const char* filename, Config& config){
     Serial.println("saving config");
     // Delete existing file, otherwise the configuration is appended to the file
     SD.remove(filename);
@@ -165,7 +162,7 @@ void setup() {
         Serial.println("failed to connect and hit timeout");
         delay(3000);
         //reset and try again, or maybe put it to deep sleep
-        ESP.reset();
+        ESP.restart();
         delay(5000);
     }
 
@@ -179,7 +176,6 @@ void setup() {
     strcpy(config.mqtt_pass, custom_mqtt_pass.getValue());
     strcpy(config.device_id, custom_device_id.getValue());
     config.mqtt_port = atoi(port_val);
-    // strcpy(blynk_token, custom_blynk_token.getValue());
     
 
      //save the custom parameters to FS
@@ -216,27 +212,25 @@ void reconnect() {
     }while(!client.connected());
 }
 
-void public_data(const char* topic, byte channel, int value)
-{
+void public_data(const char* topic, byte channel, int32_t value){
     char topic_buf[40];
-    char snum[5];
+    char snum[10];
     sprintf_P(topic_buf, "%s/%s/%d", config.device_id, topic, channel);
     itoa(value, snum, 10);
     client.publish(topic_buf, snum);
     client.loop();
 }
 
-int analog_input(byte channel)
-{
+int analog_input(byte channel){
     //todo: get analog value
-    int val = analogRead(channel);
+    int32_t val = analogRead(channel);
     public_data("aio", channel, val);
 }
 
 bool digital_io(byte channel, bool read, bool value)
 {
     if(read) {
-        int val = digitalRead(read);
+        int32_t val = digitalRead(read);
         public_data("aio", channel, val);
     }
     else {
@@ -246,8 +240,7 @@ bool digital_io(byte channel, bool read, bool value)
 
 void pwm_output(byte channel, uint32_t wait_time, uint16_t pulse_count)
 {
-    for(uint16_t i = 0; i < pulse_count; i++)
-    {
+    for(uint16_t i = 0; i < pulse_count; i++){
         digitalWrite(channel, 1);
         delayMicroseconds(wait_time);
         digitalWrite(channel, 0);
@@ -257,16 +250,13 @@ void pwm_output(byte channel, uint32_t wait_time, uint16_t pulse_count)
 
 const char* topic_header[] = { "aio", "dio", "pwm" };
 
-void callback(const char* topic, byte* payload, unsigned int length)
-{
+void callback(const char* topic, byte* payload, uint32_t length){
     
-    for(int i = 0; i < 3; i++) {
+    for(byte i = 0; i < 3; i++) {
         char topic_devid[40];
         sprintf_P(topic_devid, "%s\%s", config.device_id, topic_header[i]);
-        if(strcmp(topic, topic_devid))
-        {
-            switch(i)
-            {
+        if(strcmp(topic, topic_devid)) {
+            switch(i){
             case 0:
                 if(length >= 1) {
                     analog_input(payload[0]);
@@ -298,7 +288,7 @@ void loop() {
     // put your main code here, to run repeatedly:
     if(!client.connected()) {
         reconnect();
-        for(int i = 0; i < 3; i++) {
+        for(byte i = 0; i < 3; i++) {
             char topic_devid[40];
             sprintf_P(topic_devid, "%s\%s", config.device_id, topic_header[i]);
             client.subscribe(topic_devid);
