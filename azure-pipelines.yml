@@ -6,16 +6,8 @@
 trigger:
 - master
 
-# resources:
-#   containers:
-#   - container: platformio
-#     image: infinitecoding/platformio-for-ci:latest
-#     # endpoint: dockerhub-infinite-coding
-
 jobs:
 - job: esp32_platformio
-  # displayName: "PlatformIO build"
-  # container: platformio
   pool:
     vmImage: ubuntu-16.04
   steps:
@@ -33,9 +25,7 @@ jobs:
     - task: CopyFiles@2
       inputs:
         SourceFolder: $(Build.SourcesDirectory)/.pioenvs/esp32doit-devkit-v1/
-        Contents: |
-          'firmware.bin'
-          'spiffs.bin'
+        Contents: '*.bin'
         TargetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishBuildArtifacts@1
       inputs:
