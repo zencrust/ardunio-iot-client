@@ -22,6 +22,7 @@ jobs:
  
     - script: |
         platformio run --spiffs
+        echo "build complete.."
         # platformio run --target uploadfs || true
       displayName: 'Build firmware'
     - task: CopyFiles@2
