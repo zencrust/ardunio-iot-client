@@ -27,15 +27,12 @@ jobs:
         pip install -U platformio
         platformio update
       displayName: 'get platform IO'
-    - script: |
-        rm -fdr bin
-        mkdir bin
-      displayName: 'Prepare output directories'      
-    - script: platformio ci --build-dir="./bin" --keep-build-dir --project-conf=platformio.ini
+ 
+    - script: platformio run
       displayName: 'Build firmware'
     - task: CopyFiles@2
       inputs:
-        SourceFolder: $(Build.SourcesDirectory)/bin/.pioenvs/esp32doit-devkit-v1/
+        SourceFolder: $(Build.SourcesDirectory)/.pioenvs/esp32doit-devkit-v1/
         Contents: 'firmware.bin'
         TargetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishBuildArtifacts@1
