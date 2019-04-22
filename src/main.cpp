@@ -183,7 +183,7 @@ void setup()
         pinMode(channel.pin, INPUT);
     }
 
-    attachInterrupt(sensorInterrupt, getFlow, FALLING);
+    attachInterrupt(config.counter.pin, getFlow, FALLING);
 }
 
 void loop()

@@ -1,6 +1,6 @@
 {
     "device_id":"esp32_d1",
-    "mqtt_server": "192.168.0.19",
+    "mqtt_server": "broker.hivemq.com",
     "mqtt_port": "1883",
     "mqtt_config":{
         "enable":false,
@@ -8,56 +8,56 @@
           "password": ""
          },
     "wifi":{
-        "ssid": "Tech_D0008940",
-         "password" : "CKQHGMYW"
+        "ssid": "Harsha_2p4",
+         "password" : "passw0rD"
     },
     "adc":[{
-        "pin": 34,
+        "pin": 36,
         "attunation": 0,
         "mqtt_id": "A0"
     },
     { 
-        "pin": 35,
-        "attunation": 0,
-        "mqtt_id": "A1"
-    },
-    { 
-        "pin": 27,
-        "attunation": 0,
-        "mqtt_id": "A2"
-    },
-    { 
-        "pin": 25,
+        "pin": 39,
         "attunation": 0,
         "mqtt_id": "A3"
     },
     { 
-        "pin": 16,
+        "pin": 32,
         "attunation": 0,
         "mqtt_id": "A4"
+    },
+    { 
+        "pin": 33,
+        "attunation": 0,
+        "mqtt_id": "A5"
+    },
+    { 
+        "pin": 34,
+        "attunation": 0,
+        "mqtt_id": "A6"
     }],
     "di":[{
-        "pin": 16,
+        "pin": 2,
         "mqtt_id": "D0"
     },
     { 
-        "pin": 17,
+        "pin": 4,
         "mqtt_id": "D1"
     },
     { 
-        "pin": 5,
+        "pin": 16,
         "mqtt_id": "D2"
     },
     { 
-        "pin": 18,
+        "pin": 17,
         "mqtt_id": "D3"
     },
     { 
-        "pin": 19,
+        "pin": 21,
         "mqtt_id": "D4"
     }],
     "freq":{
-        "pin": 13,
+        "pin": 22,
         "mqtt_id": "Water Flow Rate",
         "apature_time": 1
     }
