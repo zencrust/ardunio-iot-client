@@ -58,6 +58,7 @@
     }],
     "freq":{
         "pin": 13,
+        "mqtt_id": "Water Flow Rate",
         "apature_time": 1
     }
 }

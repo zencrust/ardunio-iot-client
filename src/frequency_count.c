@@ -103,13 +103,10 @@ static void init_pcnt(uint8_t pulse_gpio, uint8_t ctrl_gpio, pcnt_unit_t unit, p
 
 void frequency_count_task_function(void * pvParameter)
 {
-    frequency_count_configuration_t configuration;
-
     assert(pvParameter);
     ESP_LOGI(TAG, "Core ID %d", xPortGetCoreID());
 
-    configuration = *(frequency_count_configuration_t*)pvParameter;
-    frequency_count_configuration_t *task_inputs = &configuration;
+    frequency_count_configuration_t *task_inputs = (frequency_count_configuration_t*)pvParameter;
 
     ESP_LOGI(TAG, "pcnt_gpio %d, pcnt_unit %d, pcnt_channel %d, rmt_gpio %d, rmt_clk_div %d, sampling_period_seconds %f, sampling_window_seconds %f, filter_length %d",
         task_inputs->pcnt_gpio,

@@ -51,11 +51,6 @@ void public_data(String topic, String channel, int32_t value)
     client.loop();
 }
 
-bool bound_check(int32_t val, int32_t check_val, int32_t range)
-{
-    return (val <= (check_val + range) && val >= (check_val - range));
-}
-
 void analog_input()
 {
     for (auto &&channel : config.adc)
@@ -74,6 +69,26 @@ void digital_input()
     }
 }
 
+int literpermin;
+unsigned long currentTime, loopTime;
+volatile unsigned int pulse_frequency;
+
+void pulse_freq_measurement()
+{
+    currentTime = millis();
+
+    //cannot measure less than 2hz
+    if (currentTime >= (loopTime + 1000))
+    {
+        loopTime = currentTime;
+        literpermin = (pulse_frequency / 7.5);
+        pulse_frequency = 0;
+        public_data("freq", config.counter.mqtt_id, literpermin);
+        Serial.print(literpermin, DEC);
+        Serial.println(" Liter/min");
+    }
+}
+
 void task(void *parameter)
 {
     while (1)
@@ -85,13 +100,10 @@ void task(void *parameter)
 
         analog_input();
         digital_input();
+        pulse_freq_measurement();
 
         vTaskDelay(40); // one tick delay (60ms) in between reads for stability
     }
-}
-
-void pulse_freq_measurement()
-{
 }
 
 void callback(char *topic, byte *message, unsigned int length)
@@ -146,6 +158,12 @@ void task_create()
         NULL, ARDUINO_RUNNING_CORE); /* Task handle. */
 }
 
+byte sensorInterrupt = 0;
+void getFlow()
+{
+    pulse_frequency++;
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -158,6 +176,14 @@ void setup()
     pinMode(ledPin, OUTPUT);
     reconnect();
     task_create();
+
+    pinMode(config.counter.pin, INPUT);
+    for (auto &&channel : config.di)
+    {
+        pinMode(channel.pin, INPUT);
+    }
+
+    attachInterrupt(sensorInterrupt, getFlow, FALLING);
 }
 
 void loop()

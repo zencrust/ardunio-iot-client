@@ -53,7 +53,8 @@ void Configuration::load(void)
         di.push_back(d);
     }
 
-
+    counter.pin = (uint8_t)config_json["freq"]["pin"];
+    counter.mqtt_id = String((const char *)config_json["freq"]["mqtt_id"]);
     Serial.println("config loaded...");
     // Close the file (Curiously, File's destructor doesn't close the file)
     file.close();
