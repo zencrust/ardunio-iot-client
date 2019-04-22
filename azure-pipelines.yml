@@ -21,8 +21,8 @@ jobs:
       displayName: 'get platform IO'
  
     - script: |
-        platformio run
-        platformio run --target uploadfs || true
+        platformio run --spiffs
+        # platformio run --target uploadfs || true
       displayName: 'Build firmware'
     - task: CopyFiles@2
       inputs:
