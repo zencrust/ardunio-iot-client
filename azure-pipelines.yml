@@ -23,11 +23,11 @@ jobs:
         rm -fdr bin
         mkdir bin
       displayName: 'Prepare output directories'      
-    - script: platformio ci --project-conf=platformio.ini .
+    - script: platformio ci --build-dir="./bin" --keep-build-dir --project-conf=platformio.ini .
       displayName: 'Build firmware'
     - task: CopyFiles@2
       inputs:
-        SourceFolder: $(Build.SourcesDirectory)/.pioenvs/esp32doit-devkit-v1/
+        SourceFolder: $(Build.SourcesDirectory)/bin/.pioenvs/esp32doit-devkit-v1/
         Contents: ['firmware.bin' | spiffs.bin ]
         TargetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishBuildArtifacts@1
