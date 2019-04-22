@@ -1,10 +1,12 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <map>
 
 #include "main.hpp"
 #include "frequency_count.h"
 #include "config_parser.hpp"
 
+#define DEBUG(...) ESP_LOGD(__func__, ...)
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -16,19 +18,6 @@ int value = 0;
 const int ledPin = 2;
 Configuration config;
 
-void setup()
-{
-    Serial.begin(115200);
-    config.load();
-
-    setup_wifi();
-    client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
-    client.setCallback(callback);
-
-    pinMode(ledPin, OUTPUT);
-    
-}
-
 void setup_wifi()
 {
     delay(10);
@@ -39,7 +28,8 @@ void setup_wifi()
 
     WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
 
-    while (WiFi.status() != WL_CONNECTED){
+    while (WiFi.status() != WL_CONNECTED)
+    {
         delay(500);
         Serial.print(".");
     }
@@ -53,25 +43,51 @@ void setup_wifi()
 void public_data(String topic, String channel, int32_t value)
 {
     String topic_buf = config.device_id + '/' + topic + '/' + channel;
-    Serial.print("publish:");
-    Serial.println(topic_buf);
-    Serial.print("value:");
-    Serial.println(value);
+    DEBUG("publish:");
+    DEBUG(topic_buf);
+    DEBUG("value:");
+    DEBUG(value);
     client.publish(topic_buf.c_str(), String(value).c_str());
     client.loop();
 }
 
-void analog_input(struct adc channel)
+bool bound_check(int32_t val, int32_t check_val, int32_t range)
 {
-    Serial.println("reading analog input ...");
-    int32_t val = analogRead(channel.pin);
-    public_data("aio", channel.mqtt_id, val);
+    return (val <= (check_val + range) && val >= (check_val - range));
 }
 
-void digital_input(struct di channel)
+void analog_input()
 {
-    int32_t val = digitalRead(channel.pin);
-    public_data("dio", channel.mqtt_id, val);
+    for (auto &&channel : config.adc)
+    {
+        int32_t val = analogRead(channel.pin);
+        public_data("aio", channel.mqtt_id, val);
+    }
+}
+
+void digital_input()
+{
+    for (auto &&channel : config.di)
+    {
+        int32_t val = digitalRead(channel.pin);
+        public_data("dio", channel.mqtt_id, val);
+    }
+}
+
+void task(void *parameter)
+{
+    while (1)
+    {
+        if (!client.connected())
+        {
+            return;
+        }
+
+        analog_input();
+        digital_input();
+
+        vTaskDelay(40); // one tick delay (60ms) in between reads for stability
+    }
 }
 
 void pulse_freq_measurement()
@@ -91,7 +107,8 @@ void reconnect()
         // Attempt to connect
         boolean result;
 
-        if(config.mqtt_config.enable){
+        if (config.mqtt_config.enable)
+        {
             result = client.connect(config.device_id.c_str(), config.mqtt_config.user_name.c_str(), config.mqtt_config.password.c_str());
         }
         else
@@ -104,7 +121,7 @@ void reconnect()
         if (result)
         {
             Serial.println("connected");
-            // Subscribe to events here            
+            // Subscribe to events here
         }
         else
         {
@@ -117,21 +134,37 @@ void reconnect()
     }
 }
 
+void task_create()
+{
+    Serial.println("creating task");
+    xTaskCreatePinnedToCore(
+        task,                        /* Task function. */
+        "ana_dig",                   /* String with name of task. */
+        2048,                        /* Stack size in bytes. */
+        NULL,                        /* Parameter passed as input of the task */
+        1,                           /* Priority of the task. */
+        NULL, ARDUINO_RUNNING_CORE); /* Task handle. */
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    config.load();
+
+    setup_wifi();
+    client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
+    client.setCallback(callback);
+
+    pinMode(ledPin, OUTPUT);
+    reconnect();
+    task_create();
+}
+
 void loop()
 {
     if (!client.connected())
     {
         reconnect();
-    }
-
-    for (auto &&n : config.adc)
-    {
-        analog_input(n);
-    }
-
-    for (auto &&n : config.di)
-    {
-        digital_input(n);
     }
 
     client.loop();
