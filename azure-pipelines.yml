@@ -6,11 +6,11 @@
 trigger:
 - master
 
-resources:
-  containers:
-  - container: platformio
-    image: infinitecoding/platformio-for-ci:latest
-    # endpoint: dockerhub-infinite-coding
+# resources:
+#   containers:
+#   - container: platformio
+#     image: infinitecoding/platformio-for-ci:latest
+#     # endpoint: dockerhub-infinite-coding
 
 jobs:
 - job: esp32_platformio
@@ -19,7 +19,12 @@ jobs:
   pool:
     vmImage: ubuntu-16.04
   steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '2.7'
+        architecture: 'x64'
     - script: |
+       "pip install -U platformio"
         rm -fdr bin
         mkdir bin
       displayName: 'Prepare output directories'      
