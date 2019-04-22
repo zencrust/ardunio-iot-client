@@ -23,13 +23,15 @@ jobs:
       inputs:
         versionSpec: '2.7'
         architecture: 'x64'
-    - script: pip install -U platformio
+    - script: |
+        pip install -U platformio
+        platformio update
       displayName: 'get platform IO'
     - script: |
         rm -fdr bin
         mkdir bin
       displayName: 'Prepare output directories'      
-    - script: platformio ci --build-dir="./bin" --keep-build-dir --project-conf=platformio.ini .
+    - script: platformio ci --build-dir="./bin" --keep-build-dir --project-conf=platformio.ini
       displayName: 'Build firmware'
     - task: CopyFiles@2
       inputs:
