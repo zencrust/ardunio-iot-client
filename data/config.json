@@ -1,0 +1,63 @@
+{
+    "device_id":"esp32_d1",
+    "mqtt_server": "192.168.0.19",
+    "mqtt_port": "1883",
+    "mqtt_config":{
+        "enable":false,
+         "user_name": "",
+          "password": ""
+         },
+    "wifi":{
+        "ssid": "Tech_D0008940",
+         "password" : "CKQHGMYW"
+    },
+    "adc":[{
+        "pin": 34,
+        "attunation": 0,
+        "mqtt_id": "A0"
+    },
+    { 
+        "pin": 35,
+        "attunation": 0,
+        "mqtt_id": "A1"
+    },
+    { 
+        "pin": 27,
+        "attunation": 0,
+        "mqtt_id": "A2"
+    },
+    { 
+        "pin": 25,
+        "attunation": 0,
+        "mqtt_id": "A3"
+    },
+    { 
+        "pin": 16,
+        "attunation": 0,
+        "mqtt_id": "A4"
+    }],
+    "di":[{
+        "pin": 16,
+        "mqtt_id": "D0"
+    },
+    { 
+        "pin": 17,
+        "mqtt_id": "D1"
+    },
+    { 
+        "pin": 5,
+        "mqtt_id": "D2"
+    },
+    { 
+        "pin": 18,
+        "mqtt_id": "D3"
+    },
+    { 
+        "pin": 19,
+        "mqtt_id": "D4"
+    }],
+    "freq":{
+        "pin": 13,
+        "apature_time": 1
+    }
+}
