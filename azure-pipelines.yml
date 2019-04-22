@@ -23,8 +23,9 @@ jobs:
       inputs:
         versionSpec: '2.7'
         architecture: 'x64'
+    - script: pip install -U platformio
+      displayName: 'get platform IO'
     - script: |
-       "pip install -U platformio"
         rm -fdr bin
         mkdir bin
       displayName: 'Prepare output directories'      
