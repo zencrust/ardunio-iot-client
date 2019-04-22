@@ -10,7 +10,7 @@ resources:
   containers:
   - container: platformio
     image: infinitecoding/platformio-for-ci:latest
-    endpoint: dockerhub-infinite-coding
+    # endpoint: dockerhub-infinite-coding
 
 jobs:
 - job: esp32_platformio
