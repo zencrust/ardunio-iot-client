@@ -22,7 +22,7 @@ jobs:
  
     - script: |
         platformio run
-        platformio run --target uploadfs > /dev/null
+        platformio run --target uploadfs || true
       displayName: 'Build firmware'
     - task: CopyFiles@2
       inputs:
