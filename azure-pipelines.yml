@@ -14,8 +14,8 @@ trigger:
 
 jobs:
 - job: esp32_platformio
-  displayName: "PlatformIO build"
-  container: platformio
+  # displayName: "PlatformIO build"
+  # container: platformio
   pool:
     vmImage: ubuntu-16.04
   steps:
