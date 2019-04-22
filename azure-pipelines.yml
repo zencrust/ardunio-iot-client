@@ -35,6 +35,10 @@ jobs:
         SourceFolder: $(Build.SourcesDirectory)/.pioenvs/esp32doit-devkit-v1/
         Contents: 'firmware.bin'
         TargetFolder: $(Build.ArtifactStagingDirectory)
+      inputs:
+        SourceFolder: $(Build.SourcesDirectory)/.pioenvs/esp32doit-devkit-v1/
+        Contents: 'spiffs.bin'
+        TargetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishBuildArtifacts@1
       inputs:
         ArtifactName: 'Firmware $(Build.BuildNumber)'
