@@ -9,7 +9,7 @@ trigger:
 resources:
   containers:
   - container: platformio
-    image: esp32_measurement_node/platformio-for-ci:latest
+    image: infinitecoding/platformio-for-ci:latest
     # endpoint: dockerhub-infinite-coding
 
 jobs:
