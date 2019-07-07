@@ -22,6 +22,8 @@ struct di
     String mqtt_id;
 };
 
+typedef struct di Temperature;
+
 struct counter
 {
     uint8_t pin;
@@ -55,6 +57,7 @@ class Configuration
 
     std::vector<struct adc> adc;
     std::vector<struct di> di;
+    std::vector<Temperature> temperature_onewire;
     struct counter counter;
 
     void load();

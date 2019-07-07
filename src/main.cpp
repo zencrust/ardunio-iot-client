@@ -1,10 +1,17 @@
+#include <main.hpp>
+
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <map>
+#include <driver/adc.h>
 
-#include "main.hpp"
 #include "frequency_count.h"
 #include "config_parser.hpp"
+
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#define TEMPERATURE_PRECISION 12
+
 
 #define DEBUG(...) ESP_LOGD(__func__, ...)
 
@@ -17,6 +24,7 @@ int value = 0;
 // LED Pin
 const int ledPin = 2;
 Configuration config;
+const int a = ADC1_CHANNEL_6 ;
 
 void setup_wifi()
 {
@@ -40,7 +48,8 @@ void setup_wifi()
     Serial.println(WiFi.localIP());
 }
 
-void public_data(String topic, String channel, int32_t value)
+template <typename T>
+void public_data(String topic, String channel, T value)
 {
     String topic_buf = config.device_id + '/' + topic + '/' + channel;
     DEBUG("publish:");
@@ -50,6 +59,33 @@ void public_data(String topic, String channel, int32_t value)
     client.publish(topic_buf.c_str(), String(value).c_str());
     client.loop();
 }
+
+std::vector<OneWire> onewires;
+std::vector<std::tuple<String, DallasTemperature> > temperatures;
+
+void setupTemperature()
+{   
+    for (auto &&channel : config.temperature_onewire){
+        OneWire onewire(channel.pin);
+        
+        DallasTemperature temp(&onewire);
+        temp.setResolution(TEMPERATURE_PRECISION);
+
+        onewires.push_back(onewire);
+        temperatures.push_back(std::make_tuple(channel.mqtt_id, temp));       
+    }
+}
+
+void readTemperatures()
+{
+    for (auto &&temp_channel : temperatures)
+    {
+        std::get<1>(temp_channel).requestTemperatures();
+        public_data("temp", std::get<0>(temp_channel), std::get<1>(temp_channel).getTempCByIndex(0));
+    }
+}
+
+
 
 void analog_input()
 {
@@ -81,28 +117,34 @@ void pulse_freq_measurement()
     if (currentTime >= (loopTime + 1000))
     {
         loopTime = currentTime;
-        literpermin = (pulse_frequency / 7.5);
+        public_data("freq", config.counter.mqtt_id, pulse_frequency);
         pulse_frequency = 0;
-        public_data("freq", config.counter.mqtt_id, literpermin);
-        Serial.print(literpermin, DEC);
-        Serial.println(" Liter/min");
+
     }
 }
 
 void task(void *parameter)
 {
+    const TickType_t foursecdelay = 4000/portTICK_PERIOD_MS;
+    const TickType_t secdelay = 1000/portTICK_PERIOD_MS;
+    pulse_frequency = 0;
     while (1)
     {
         if (!client.connected())
         {
-            return;
+            Serial.println("task client not connected");
+            vTaskDelay(foursecdelay);
+            continue;
         }
+
+        Serial.println("task measuring...");
 
         analog_input();
         digital_input();
         pulse_freq_measurement();
+        readTemperatures();
 
-        vTaskDelay(40); // one tick delay (60ms) in between reads for stability
+        vTaskDelay(secdelay); // one tick delay (60ms) in between reads for stability
     }
 }
 
@@ -118,14 +160,16 @@ void reconnect()
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         boolean result;
-
+        String willMessage = config.device_id + "/" + "heartbeat";
         if (config.mqtt_config.enable)
         {
-            result = client.connect(config.device_id.c_str(), config.mqtt_config.user_name.c_str(), config.mqtt_config.password.c_str());
+            result = client.connect(config.device_id.c_str(), config.mqtt_config.user_name.c_str(), 
+            config.mqtt_config.password.c_str(), willMessage.c_str(),
+            MQTTQOS0, true, "Disconnected");
         }
         else
-        {
-            result = client.connect(config.device_id.c_str());
+        {          
+            result = client.connect(config.device_id.c_str(), willMessage.c_str(), MQTTQOS0,true, "Disconnected");
             Serial.println("mqtt connect without auth");
             Serial.println(config.device_id);
             Serial.println(config.mqtt_server);
@@ -172,7 +216,6 @@ void setup()
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
-
     pinMode(ledPin, OUTPUT);
     reconnect();
     task_create();
@@ -183,6 +226,7 @@ void setup()
         pinMode(channel.pin, INPUT);
     }
 
+    setupTemperature();
     attachInterrupt(config.counter.pin, getFlow, FALLING);
 }
 

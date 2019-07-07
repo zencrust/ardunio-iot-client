@@ -1,6 +1,6 @@
 {
     "device_id":"esp32_d1",
-    "mqtt_server": "broker.hivemq.com",
+    "mqtt_server": "192.168.0.26",
     "mqtt_port": "1883",
     "mqtt_config":{
         "enable":false,
@@ -11,54 +11,63 @@
         "ssid": "Harsha_2p4",
          "password" : "passw0rD"
     },
-    "adc":[{
+    
+    "adc":[],
+    "di":[
+    {
+        "pin": 35,
+        "mqtt_id": "RIN"
+    },
+    { 
         "pin": 36,
-        "attunation": 0,
-        "mqtt_id": "A0"
-    },
-    { 
-        "pin": 39,
-        "attunation": 0,
-        "mqtt_id": "A3"
-    },
-    { 
-        "pin": 32,
-        "attunation": 0,
-        "mqtt_id": "A4"
+        "mqtt_id": "YIN"
     },
     { 
         "pin": 33,
-        "attunation": 0,
-        "mqtt_id": "A5"
+        "mqtt_id": "BIN"
     },
-    { 
+    {
         "pin": 34,
-        "attunation": 0,
-        "mqtt_id": "A6"
-    }],
-    "di":[{
-        "pin": 2,
-        "mqtt_id": "D0"
+        "mqtt_id": "HVDC_OK"
     },
     { 
-        "pin": 4,
-        "mqtt_id": "D1"
+        "pin": 13,
+        "mqtt_id": "HVDC_REV"
     },
     { 
-        "pin": 16,
-        "mqtt_id": "D2"
+        "pin": 32,
+        "mqtt_id": "LVDC_OK"
     },
     { 
-        "pin": 17,
-        "mqtt_id": "D3"
+        "pin": 25,
+        "mqtt_id": "LVDC_REV"
     },
     { 
-        "pin": 21,
-        "mqtt_id": "D4"
-    }],
+        "pin": 39,
+        "mqtt_id": "Coil_OK"
+    }
+    ],
     "freq":{
-        "pin": 22,
+        "pin": 27,
         "mqtt_id": "Water Flow Rate",
         "apature_time": 1
-    }
+    },
+    "temperature":[
+        {
+            "pin": 40,
+            "mqtt_id": "Temp1"
+        },
+        {
+            "pin": 41,
+            "mqtt_id": "Temp2"
+        },
+        {
+            "pin": 42,
+            "mqtt_id": "Temp3"
+        },
+        {
+            "pin": 43,
+            "mqtt_id": "Temp4"
+        }
+    ]
 }
