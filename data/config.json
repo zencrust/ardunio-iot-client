@@ -1,6 +1,6 @@
 {
-    "device_id":"esp32_d1",
-    "mqtt_server": "192.168.0.26",
+    "device_id":"Chiller1",
+    "mqtt_server": "192.168.225.100",
     "mqtt_port": "1883",
     "mqtt_config":{
         "enable":false,
@@ -8,45 +8,43 @@
           "password": ""
          },
     "wifi":{
-        "ssid": "Harsha_2p4",
-         "password" : "passw0rD"
+        "ssid": "HU_PortableWiFi",
+         "password" : "nokia6110"
     },
     
     "adc":[],
-    "di":[
-    {
-        "pin": 35,
-        "mqtt_id": "RIN"
-    },
-    { 
-        "pin": 36,
-        "mqtt_id": "YIN"
-    },
-    { 
-        "pin": 33,
-        "mqtt_id": "BIN"
-    },
-    {
-        "pin": 34,
-        "mqtt_id": "HVDC_OK"
-    },
-    { 
-        "pin": 13,
-        "mqtt_id": "HVDC_REV"
-    },
-    { 
-        "pin": 32,
-        "mqtt_id": "LVDC_OK"
-    },
-    { 
-        "pin": 25,
-        "mqtt_id": "LVDC_REV"
-    },
-    { 
-        "pin": 39,
-        "mqtt_id": "Coil_OK"
-    }
+    "di":[{
+            "pin": 33,
+            "mqtt_id": "Panel Light 1"
+        },
+        {
+            "pin": 34,
+            "mqtt_id": "Panel Light 2"
+        },
+        {
+            "pin": 35,
+            "mqtt_id": "Panel Light 3"
+        },
+        {
+            "pin": 36,
+            "mqtt_id": "Panel Light 4"
+        },
+        {
+            "pin": 39,
+            "mqtt_id": "B Phase IN"
+        },
+        {
+            "pin": 18,
+            "mqtt_id": "Y Phase IN"
+        }
     ],
+    "fault":{
+        "pin": 19,
+        "mqtt_id": "fault indication"
+    },
+    "boot": {
+        "pin": 17
+    },
     "freq":{
         "pin": 27,
         "mqtt_id": "Water Flow Rate",
@@ -54,20 +52,28 @@
     },
     "temperature":[
         {
-            "pin": 40,
-            "mqtt_id": "Temp1"
+            "pin": 4,
+            "mqtt_id": "Tank Temp1"
         },
         {
-            "pin": 41,
-            "mqtt_id": "Temp2"
+            "pin": 13,
+            "mqtt_id": "Tank Temp2"
         },
         {
-            "pin": 42,
-            "mqtt_id": "Temp3"
+            "pin": 25,
+            "mqtt_id": "Tank Temp3"
         },
         {
-            "pin": 43,
-            "mqtt_id": "Temp4"
+            "pin": 26,
+            "mqtt_id": "Tank Temp4"
+        },
+        {
+            "pin": 27,
+            "mqtt_id": "Motor Temp1"
+        },
+        {
+            "pin": 32,
+            "mqtt_id": "Motor Temp2"
         }
     ]
 }

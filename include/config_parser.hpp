@@ -22,7 +22,13 @@ struct di
     String mqtt_id;
 };
 
-typedef struct di Temperature;
+struct temperature
+{
+    uint8_t pin;
+    String mqtt_id;
+};
+
+typedef struct temperature Temperature;
 
 struct counter
 {
@@ -46,6 +52,10 @@ struct wifi
     String password;
 };
 
+struct boot{
+    uint8_t pin;
+};
+
 class Configuration
 {
   public:
@@ -59,7 +69,7 @@ class Configuration
     std::vector<struct di> di;
     std::vector<Temperature> temperature_onewire;
     struct counter counter;
-
+    struct boot boot;
     void load();
 };
 

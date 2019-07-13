@@ -52,16 +52,20 @@ void Configuration::load(void)
 
         di.push_back(d);
     }
+
     for(int i = 0; i<config_json["temperature"].size(); i++){
+
         Temperature t = {
             (uint8_t)config_json["temperature"][i]["pin"],
-            String((const char *)config_json["temperature"][i]["mqtt_id"])};
+             String((const char *)config_json["temperature"][i]["mqtt_id"])};
 
-        di.push_back(t);
+        temperature_onewire.push_back(t);
     }
 
     counter.pin = (uint8_t)config_json["freq"]["pin"];
     counter.mqtt_id = String((const char *)config_json["freq"]["mqtt_id"]);
+    boot.pin = (uint8_t)config_json["boot"]["pin"];
+    Serial.println((int)boot.pin);
     Serial.println("config loaded...");
     // Close the file (Curiously, File's destructor doesn't close the file)
     file.close();

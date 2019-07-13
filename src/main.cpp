@@ -1,8 +1,6 @@
 #include <main.hpp>
-
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <map>
 #include <driver/adc.h>
 
 #include "frequency_count.h"
@@ -30,17 +28,30 @@ void setup_wifi()
 {
     delay(10);
     // We start by connecting to a WiFi network
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(config.wifi.ssid);
-
-    WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
-
-    while (WiFi.status() != WL_CONNECTED)
+    
+    do
     {
-        delay(500);
-        Serial.print(".");
-    }
+        Serial.println();
+        Serial.print("Connecting to ");
+        Serial.println(config.wifi.ssid);
+        
+        WiFi.disconnect();
+        WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
+        WiFi.setHostname(config.device_id.c_str());
+
+        int i = 0;
+        while (!WiFi.isConnected())
+        {
+            delay(500);
+            Serial.print(".");
+            if(i > 20){
+                break;
+            }
+
+            i++;
+        }
+
+    }while(!WiFi.isConnected());
 
     Serial.println("");
     Serial.println("WiFi connected");
@@ -60,32 +71,41 @@ void public_data(String topic, String channel, T value)
     client.loop();
 }
 
-std::vector<OneWire> onewires;
-std::vector<std::tuple<String, DallasTemperature> > temperatures;
+std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire> > temperatures;
+uint8_t pins[] = {4, 13, 25, 26};
 
 void setupTemperature()
 {   
+    Serial.println("setting setupTemperature");    
     for (auto &&channel : config.temperature_onewire){
-        OneWire onewire(channel.pin);
-        
-        DallasTemperature temp(&onewire);
-        temp.setResolution(TEMPERATURE_PRECISION);
-
-        onewires.push_back(onewire);
-        temperatures.push_back(std::make_tuple(channel.mqtt_id, temp));       
+        temperatures.emplace_back(0, channel.mqtt_id, DallasTemperature(), OneWire(channel.pin));
     }
+
+    for (auto &&channel : temperatures){
+        std::get<2>(channel).setOneWire(&std::get<3>(channel));
+        std::get<2>(channel).setResolution(12);
+    }
+
+    Serial.println("setting setupTemperature done");
 }
 
 void readTemperatures()
 {
     for (auto &&temp_channel : temperatures)
     {
-        std::get<1>(temp_channel).requestTemperatures();
-        public_data("temp", std::get<0>(temp_channel), std::get<1>(temp_channel).getTempCByIndex(0));
+        Serial.println(std::get<1>(temp_channel));
+        std::get<2>(temp_channel).requestTemperatures();
+        auto Cel = std::get<2>(temp_channel).getTempCByIndex(0);
+        Serial.println(Cel);
+
+        if(DEVICE_DISCONNECTED_C != Cel){
+            public_data("temp", std::get<1>(temp_channel), Cel);
+        }
+        else{
+            public_data("temp", std::get<1>(temp_channel), "Disconnected");
+        }        
     }
 }
-
-
 
 void analog_input()
 {
@@ -119,7 +139,6 @@ void pulse_freq_measurement()
         loopTime = currentTime;
         public_data("freq", config.counter.mqtt_id, pulse_frequency);
         pulse_frequency = 0;
-
     }
 }
 
@@ -157,6 +176,10 @@ void reconnect()
     // Loop until we're reconnected
     while (!client.connected())
     {
+        if(!WiFi.isConnected()){
+            setup_wifi();
+        }
+
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         boolean result;
@@ -212,12 +235,16 @@ void setup()
 {
     Serial.begin(115200);
     config.load();
+    pinMode(config.boot.pin, OUTPUT);
 
+    digitalWrite(config.boot.pin, HIGH);
+
+    setupTemperature();
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
-    pinMode(ledPin, OUTPUT);
-    reconnect();
+
+    reconnect();    
     task_create();
 
     pinMode(config.counter.pin, INPUT);
@@ -225,8 +252,7 @@ void setup()
     {
         pinMode(channel.pin, INPUT);
     }
-
-    setupTemperature();
+   
     attachInterrupt(config.counter.pin, getFlow, FALLING);
 }
 
@@ -234,8 +260,10 @@ void loop()
 {
     if (!client.connected())
     {
+        digitalWrite(config.boot.pin, HIGH);
         reconnect();
     }
 
+    digitalWrite(config.boot.pin, LOW);
     client.loop();
 }
