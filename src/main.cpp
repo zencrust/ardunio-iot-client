@@ -72,7 +72,6 @@ void public_data(String topic, String channel, T value)
 }
 
 std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire> > temperatures;
-uint8_t pins[] = {4, 13, 25, 26};
 
 void setupTemperature()
 {   
@@ -250,7 +249,7 @@ void setup()
     pinMode(config.counter.pin, INPUT);
     for (auto &&channel : config.di)
     {
-        pinMode(channel.pin, INPUT);
+        pinMode(channel.pin, INPUT_PULLDOWN);
     }
    
     attachInterrupt(config.counter.pin, getFlow, FALLING);

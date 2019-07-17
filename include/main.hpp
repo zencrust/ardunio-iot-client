@@ -5,7 +5,7 @@
 #else
 #define ARDUINO_RUNNING_CORE 1
 #endif
-#define MQTT_KEEPALIVE 2
+#define MQTT_KEEPALIVE 3
 
 #include <Arduino.h>
 
