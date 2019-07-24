@@ -1,6 +1,6 @@
 {
-    "device_id":"Chiller1",
-    "mqtt_server": "192.168.225.100",
+    "device_id":"Chiller4",
+    "mqtt_server": "zencrust.cf",
     "mqtt_port": "1883",
     "mqtt_config":{
         "enable":false,
@@ -8,33 +8,33 @@
           "password": ""
          },
     "wifi":{
-        "ssid": "HU_PortableWiFi",
-         "password" : "nokia6110"
+        "ssid": "ChillerMonitor",
+         "password" : "ChillerMonitor@1"
     },
-    
     "adc":[],
     "di":[{
             "pin": 33,
-            "mqtt_id": "Panel Light 1"
+            "activelow": false,
+            "mqtt_id": "Chiller Fault"
         },
         {
             "pin": 34,
-            "mqtt_id": "Panel Light 2"
+            "activelow": true,
+            "mqtt_id": "Chiller Healthy"
         },
         {
-            "pin": 35,
-            "mqtt_id": "Panel Light 3"
-        },
-        {
-            "pin": 36,
-            "mqtt_id": "Panel Light 4"
+            "pin": 16,
+            "activelow": true,
+            "mqtt_id": "R Phase IN"
         },
         {
             "pin": 39,
+            "activelow": false,
             "mqtt_id": "B Phase IN"
         },
         {
             "pin": 18,
+            "activelow": false,
             "mqtt_id": "Y Phase IN"
         }
     ],
@@ -45,6 +45,9 @@
     "boot": {
         "pin": 17
     },
+    "mqtt_down":{
+        "pin": 23
+    },
     "freq":{
         "pin": 27,
         "mqtt_id": "Water Flow Rate",
@@ -53,27 +56,27 @@
     "temperature":[
         {
             "pin": 4,
-            "mqtt_id": "Tank Temp1"
+            "mqtt_id": "Tank 1"
         },
         {
             "pin": 13,
-            "mqtt_id": "Tank Temp2"
+            "mqtt_id": "Tank 2"
         },
         {
             "pin": 25,
-            "mqtt_id": "Tank Temp3"
+            "mqtt_id": "Tank 3"
         },
         {
             "pin": 26,
-            "mqtt_id": "Tank Temp4"
+            "mqtt_id": "Tank 4"
         },
         {
             "pin": 27,
-            "mqtt_id": "Motor Temp1"
+            "mqtt_id": "Motor 1"
         },
         {
             "pin": 32,
-            "mqtt_id": "Motor Temp2"
+            "mqtt_id": "Motor 2"
         }
     ]
 }

@@ -11,7 +11,7 @@
 #define TEMPERATURE_PRECISION 12
 
 
-#define DEBUG(...) ESP_LOGD(__func__, ...)
+//#define DEBUG(...) ESP_LOGD(__func__, ...)
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -24,11 +24,22 @@ const int ledPin = 2;
 Configuration config;
 const int a = ADC1_CHANNEL_6 ;
 
+uint8_t buzzer_previous_value = -1;
+uint8_t buzzar_last_milliseconds = 0;
+volatile uint8_t buzzar_value = BUZZAR_STARTUP;
+//SemaphoreHandle_t mutex;
+//portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
+
+void setBuzzar(uint8_t val){
+    //xSemaphoreTake(mutex, portMAX_DELAY);
+    buzzar_value = val;
+    //xSemaphoreGive(mutex);
+}
+
 void setup_wifi()
 {
     delay(10);
     // We start by connecting to a WiFi network
-    
     do
     {
         Serial.println();
@@ -38,7 +49,7 @@ void setup_wifi()
         WiFi.disconnect();
         WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
         WiFi.setHostname(config.device_id.c_str());
-
+        setBuzzar(BUZZAR_WIFI_DOWN);
         int i = 0;
         while (!WiFi.isConnected())
         {
@@ -63,10 +74,10 @@ template <typename T>
 void public_data(String topic, String channel, T value)
 {
     String topic_buf = config.device_id + '/' + topic + '/' + channel;
-    DEBUG("publish:");
-    DEBUG(topic_buf);
-    DEBUG("value:");
-    DEBUG(value);
+    // DEBUG("publish:");
+    // DEBUG(topic_buf);
+    // DEBUG("value:");
+    // DEBUG(value);
     client.publish(topic_buf.c_str(), String(value).c_str());
     client.loop();
 }
@@ -120,6 +131,10 @@ void digital_input()
     for (auto &&channel : config.di)
     {
         int32_t val = digitalRead(channel.pin);
+        if(channel.activelow){
+            val = val ? 0 : 1;
+        }
+        
         public_data("dio", channel.mqtt_id, val);
     }
 }
@@ -141,17 +156,89 @@ void pulse_freq_measurement()
     }
 }
 
+
+
+void buzzar_task(void *parameter){
+    while(1){
+
+        //if( xSemaphoreTake(mutex, 10/portTICK_RATE_MS) == pdTRUE)
+        {
+            uint8_t tmp_buzzar_val = buzzar_value;
+            if(tmp_buzzar_val != buzzer_previous_value){
+                buzzar_last_milliseconds = millis();
+                buzzer_previous_value = tmp_buzzar_val;
+                //Serial.print("new buzzar value");
+                //Serial.println(buzzar_value);
+            }
+            unsigned long tmp;
+            switch(tmp_buzzar_val){
+                case BUZZAR_NOERROR:
+                    digitalWrite(config.boot.pin, LOW);
+                    digitalWrite(config.mqtt_fault.pin, LOW);
+                    //Serial.println("buzzar No Error");
+                    break;
+                case BUZZAR_WIFI_DOWN:
+                    tmp = millis() - buzzar_last_milliseconds;
+                    tmp = tmp %1000;
+                    if(( tmp/250) == 0)
+                    {
+                        digitalWrite(config.boot.pin, HIGH);
+                    }
+                    else
+                    {
+                        digitalWrite(config.boot.pin, LOW);
+                    }
+                    digitalWrite(config.mqtt_fault.pin, HIGH);
+                    //Serial.println("buzzar WIFI_DOWN");
+                    break;
+                case BUZZAR_MQTT_DOWN:
+                    tmp = millis() - buzzar_last_milliseconds;
+                    tmp = tmp %2000;
+                    if(( tmp/500) == 0)
+                    {
+                        digitalWrite(config.boot.pin, HIGH);
+                    }
+                    else
+                    {
+                        digitalWrite(config.boot.pin, LOW);
+                    }
+                    digitalWrite(config.mqtt_fault.pin, HIGH);
+                    //Serial.println("buzzar MQTT_DOWN");
+                    break;
+                case BUZZAR_STARTUP:
+                    tmp = millis() - buzzar_last_milliseconds;
+                    tmp = tmp %2000;
+                    if(( tmp/250) == 0)
+                    {
+                        digitalWrite(config.boot.pin, HIGH);
+                    }
+                    else
+                    {
+                        digitalWrite(config.boot.pin, LOW);
+                    }
+                    digitalWrite(config.mqtt_fault.pin, HIGH);
+                    //Serial.println("buzzar STARTUP");
+                    break;
+                default:
+                    digitalWrite(config.boot.pin, HIGH);   
+                
+            }
+
+            //xSemaphoreAltGive(mutex);
+        }
+        delay(250);
+    }
+}
+
 void task(void *parameter)
 {
-    const TickType_t foursecdelay = 4000/portTICK_PERIOD_MS;
-    const TickType_t secdelay = 1000/portTICK_PERIOD_MS;
     pulse_frequency = 0;
     while (1)
     {
         if (!client.connected())
         {
             Serial.println("task client not connected");
-            vTaskDelay(foursecdelay);
+            delay(4000);
             continue;
         }
 
@@ -162,7 +249,9 @@ void task(void *parameter)
         pulse_freq_measurement();
         readTemperatures();
 
-        vTaskDelay(secdelay); // one tick delay (60ms) in between reads for stability
+        uint8_t rssi = RssiToPercentage(WiFi.RSSI());
+        public_data("telemetry", "wifi Signal Strength", rssi);
+        delay(1000);
     }
 }
 
@@ -215,13 +304,25 @@ void reconnect()
 void task_create()
 {
     Serial.println("creating task");
-    xTaskCreatePinnedToCore(
+    xTaskCreate(
         task,                        /* Task function. */
         "ana_dig",                   /* String with name of task. */
         2048,                        /* Stack size in bytes. */
         NULL,                        /* Parameter passed as input of the task */
         1,                           /* Priority of the task. */
-        NULL, ARDUINO_RUNNING_CORE); /* Task handle. */
+        NULL); /* Task handle. */
+}
+
+void task_buzzar_create()
+{
+    Serial.println("creating buzzar ask");
+    xTaskCreate(
+        buzzar_task,                        /* Task function. */
+        "buzzar_task",                   /* String with name of task. */
+        1024,                        /* Stack size in bytes. */
+        NULL,                        /* Parameter passed as input of the task */
+        1,                           /* Priority of the task. */
+        NULL); /* Task handle. */
 }
 
 byte sensorInterrupt = 0;
@@ -234,16 +335,21 @@ void setup()
 {
     Serial.begin(115200);
     config.load();
+    //mutex = xSemaphoreCreateMutex();
     pinMode(config.boot.pin, OUTPUT);
+    pinMode(config.mqtt_fault.pin, OUTPUT);
+    task_buzzar_create();
+    buzzar_value = BUZZAR_STARTUP;
 
-    digitalWrite(config.boot.pin, HIGH);
+    //digitalWrite(config.boot.pin, HIGH);
 
     setupTemperature();
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
 
-    reconnect();    
+    
+    reconnect();
     task_create();
 
     pinMode(config.counter.pin, INPUT);
@@ -255,14 +361,27 @@ void setup()
     attachInterrupt(config.counter.pin, getFlow, FALLING);
 }
 
+uint8_t RssiToPercentage(int dBm)
+{
+    if(dBm <= -100)
+        return 0;
+    if(dBm >= -50)
+        return 100;
+    return 2 * (dBm + 100);
+}
+
 void loop()
 {
     if (!client.connected())
     {
-        digitalWrite(config.boot.pin, HIGH);
+        //digitalWrite(config.boot.pin, HIGH);
+        //digitalWrite(config.mqtt_fault.pin, HIGH);
+        setBuzzar(BUZZAR_MQTT_DOWN);
         reconnect();
     }
 
-    digitalWrite(config.boot.pin, LOW);
+    //digitalWrite(config.boot.pin, LOW);
+    //digitalWrite(config.mqtt_fault.pin, HIGH);
+    setBuzzar(BUZZAR_NOERROR);
     client.loop();
 }

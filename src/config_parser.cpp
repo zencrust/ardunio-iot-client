@@ -48,6 +48,7 @@ void Configuration::load(void)
     for(int i = 0; i<config_json["di"].size(); i++){
         struct di d = {
             (uint8_t)config_json["di"][i]["pin"],
+            (bool)config_json["di"][i]["activelow"],
             String((const char *)config_json["di"][i]["mqtt_id"])};
 
         di.push_back(d);
@@ -65,6 +66,7 @@ void Configuration::load(void)
     counter.pin = (uint8_t)config_json["freq"]["pin"];
     counter.mqtt_id = String((const char *)config_json["freq"]["mqtt_id"]);
     boot.pin = (uint8_t)config_json["boot"]["pin"];
+    mqtt_fault.pin = (uint8_t)config_json["mqtt_down"]["pin"];
     Serial.println((int)boot.pin);
     Serial.println("config loaded...");
     // Close the file (Curiously, File's destructor doesn't close the file)

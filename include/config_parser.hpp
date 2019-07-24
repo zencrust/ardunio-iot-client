@@ -19,6 +19,7 @@ struct adc
 struct di
 {
     uint8_t pin;
+    bool activelow;
     String mqtt_id;
 };
 
@@ -69,6 +70,7 @@ class Configuration
     std::vector<struct di> di;
     std::vector<Temperature> temperature_onewire;
     struct counter counter;
+    struct boot mqtt_fault;
     struct boot boot;
     void load();
 };
