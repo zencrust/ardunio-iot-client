@@ -8,8 +8,8 @@
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define TEMPERATURE_PRECISION 12
-
+#define TEMPERATURE_PRECISION 10
+#define TEMPERATURE_RETRIES 5
 
 //#define DEBUG(...) ESP_LOGD(__func__, ...)
 
@@ -96,7 +96,7 @@ void setupTemperature()
 
     for (auto &&channel : temperatures){
         std::get<2>(channel).setOneWire(&std::get<3>(channel));
-        std::get<2>(channel).setResolution(12);
+        std::get<2>(channel).setResolution(TEMPERATURE_PRECISION);
     }
 
     Serial.println("setting setupTemperature done");
@@ -106,8 +106,21 @@ void readTemperatures()
 {
     for (auto &&temp_channel : temperatures)
     {
-        Serial.println(std::get<1>(temp_channel));
+        std::get<2>(temp_channel).setWaitForConversion(false);
         std::get<2>(temp_channel).requestTemperatures();
+    }
+    for (auto &&temp_channel : temperatures)
+    {
+        Serial.println(std::get<1>(temp_channel));
+        int index = (std::get<2>(temp_channel).millisToWaitForConversion(TEMPERATURE_PRECISION)/10) + 2; //give 20 ms more to get temp
+        while(!std::get<2>(temp_channel).isConversionComplete()){
+            delay(10);
+            index--;
+            if(index <= 0){
+                break;
+            }
+        }
+
         auto Cel = std::get<2>(temp_channel).getTempCByIndex(0);
         Serial.println(Cel);
 
@@ -121,7 +134,7 @@ void readTemperatures()
             auto index = std::get<0>(temp_channel);
             disconnected_times[index]++;
             Serial.println(disconnected_times[index]);
-            if(disconnected_times[index] >= 10)
+            if(disconnected_times[index] >= TEMPERATURE_RETRIES)
             {
                 Serial.println("write disconnected");
                 disconnected_times[index] = 0;
@@ -257,7 +270,7 @@ void task(void *parameter)
         }
 
         Serial.println("task measuring...");
-
+        auto initial_time = millis();
         analog_input();
         digital_input();
         pulse_freq_measurement();
@@ -265,7 +278,11 @@ void task(void *parameter)
 
         uint8_t rssi = RssiToPercentage(WiFi.RSSI());
         public_data("telemetry", "wifi Signal Strength", rssi);
-        delay(1000);
+        auto final_time = millis();
+        long delay_time = 2000 - (final_time - initial_time);
+        if(delay_time > 0){
+            delay(delay_time);
+        }
     }
 }
 
