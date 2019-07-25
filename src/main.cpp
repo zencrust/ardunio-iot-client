@@ -83,12 +83,15 @@ void public_data(String topic, String channel, T value)
 }
 
 std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire> > temperatures;
-
+std::vector<int> disconnected_times;
 void setupTemperature()
 {   
-    Serial.println("setting setupTemperature");    
+    Serial.println("setting setupTemperature");
+    uint8_t index = 0;    
     for (auto &&channel : config.temperature_onewire){
-        temperatures.emplace_back(0, channel.mqtt_id, DallasTemperature(), OneWire(channel.pin));
+        temperatures.emplace_back(index, channel.mqtt_id, DallasTemperature(), OneWire(channel.pin));
+        disconnected_times.push_back(0);
+        index++;
     }
 
     for (auto &&channel : temperatures){
@@ -110,9 +113,20 @@ void readTemperatures()
 
         if(DEVICE_DISCONNECTED_C != Cel){
             public_data("temp", std::get<1>(temp_channel), Cel);
+            auto index = std::get<0>(temp_channel);
+            disconnected_times[index] = 0;
+
         }
         else{
-            public_data("temp", std::get<1>(temp_channel), "Disconnected");
+            auto index = std::get<0>(temp_channel);
+            disconnected_times[index]++;
+            Serial.println(disconnected_times[index]);
+            if(disconnected_times[index] >= 10)
+            {
+                Serial.println("write disconnected");
+                disconnected_times[index] = 0;
+                public_data("temp", std::get<1>(temp_channel), "Disconnected");
+            }
         }        
     }
 }
