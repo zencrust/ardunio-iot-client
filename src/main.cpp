@@ -5,13 +5,18 @@
 
 #include "frequency_count.h"
 #include "config_parser.hpp"
-
+#include "time.h"
 #include <OneWire.h>
+#include "esp_system.h"
 #include <DallasTemperature.h>
+
 const int TEMPERATURE_PRECISION = 10;
 const int TEMPERATURE_RETRIES = 5;
 
 //#define DEBUG(...) ESP_LOGD(__func__, ...)
+const char *ntpServer = "in.pool.ntp.org";
+const long gmtOffset_sec = 19800;
+const int daylightOffset_sec = 0;
 
 WiFiClientSecure espClient;
 //WiFiClient espClient;
@@ -26,9 +31,14 @@ Configuration config;
 const int a = ADC1_CHANNEL_6;
 
 const int ledChannel = 0;
+
+const int wdtTimeout = 20000;  //time in ms to trigger the watchdog
+hw_timer_t *timer = NULL;
+
 void setup_wifi()
 {
     delay(10);
+    timerWrite(timer, 0);
     // We start by connecting to a WiFi network
     do
     {
@@ -55,7 +65,7 @@ void setup_wifi()
         }
 
     } while (!WiFi.isConnected());
-
+    espClient.setNoDelay(true);
     Serial.println("");
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
@@ -71,15 +81,18 @@ void MqttErr(bool success)
 }
 
 template <typename T>
-void public_data(String topic, String channel, T value)
-{
-    String topic_buf = config.device_id + '/' + topic + '/' + channel;
+void public_data(String function, String channel, T value, bool retained = false)
+{   
+    if(!client.connected()){
+        reconnect();
+    }
+
+    String topic_buf = config.device_id + '/' + function + '/' + channel;
     // DEBUG("publish:");
     // DEBUG(topic_buf);
     // DEBUG("value:");
     // DEBUG(value);
-    MqttErr(client.publish(topic_buf.c_str(), String(value).c_str()));
-    client.loop();
+    client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
 
 std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire>> temperatures;
@@ -118,6 +131,7 @@ void readTemperatures()
         do
         {
             Serial.println(std::get<1>(temp_channel));
+            
             int timeToWaitms = (std::get<2>(temp_channel).millisToWaitForConversion(TEMPERATURE_PRECISION)) + 30; //give 30ms more time to get temp
             auto initialTime = millis();
             do
@@ -133,7 +147,7 @@ void readTemperatures()
             Serial.println(Cel);
 
             if (DEVICE_DISCONNECTED_C != Cel)
-            {
+            {                
                 public_data("temp", std::get<1>(temp_channel), Cel);
                 auto index = std::get<0>(temp_channel);
                 disconnected_times[index] = 0;
@@ -141,7 +155,8 @@ void readTemperatures()
                 break;
             }
             retry++;
-        } while (retry < TEMPERATURE_RETRIES);
+        }
+        while (retry < TEMPERATURE_RETRIES);
         if (!isWritten)
         {
             Serial.println("write disconnected");
@@ -190,7 +205,7 @@ void pulse_freq_measurement()
     }
 }
 
- #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
+#define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
 void setBuzzar(uint8_t buzzar_value)
 {
     switch (buzzar_value)
@@ -227,6 +242,8 @@ void callback(char *topic, byte *message, unsigned int length)
 void reconnect()
 {
     // Loop until we're reconnected
+    Serial.print("reconnecting...");
+    timerWrite(timer, 0);
     while (!client.connected())
     {
         setBuzzar(BUZZAR_MQTT_DOWN);
@@ -243,7 +260,7 @@ void reconnect()
         {
             result = client.connect(config.device_id.c_str(), config.mqtt_config.user_name.c_str(),
                                     config.mqtt_config.password.c_str(), willMessage.c_str(),
-                                    MQTTQOS0, true, "Disconnected");
+                                    MQTTQOS0, false, "Disconnected");
         }
         else
         {
@@ -277,24 +294,37 @@ void getFlow()
     pulse_frequency++;
 }
 
+void send_last_update_time()
+{
+    time_t now;
+    time(&now);
+    public_data("telemetry", "last update time", now, true);
+}
+
+
+void IRAM_ATTR resetModule() {
+  ets_printf("reboot\n");
+  esp_restart();
+}
+
 
 void setup()
 {
+    timer = timerBegin(0, 80, true);                  //timer 0, div 80
     Serial.begin(115200);
     config.load();
     pinMode(config.boot.pin, OUTPUT);
     pinMode(config.mqtt_fault.pin, OUTPUT);
 
-
     ledcSetup(ledChannel, 0.5, 8);
     ledcAttachPin(config.boot.pin, ledChannel);
-    
+
     setBuzzar(BUZZAR_STARTUP);
     setupTemperature();
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
-
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     reconnect();
 
     pinMode(config.counter.pin, INPUT);
@@ -304,6 +334,11 @@ void setup()
     }
 
     attachInterrupt(config.counter.pin, getFlow, FALLING);
+
+    timerWrite(timer, 0);
+    timerAttachInterrupt(timer, &resetModule, true);  //attach callback
+    timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
+    timerAlarmEnable(timer);                          //enable interrupt
 }
 
 uint8_t RssiToPercentage(int dBm)
@@ -314,23 +349,27 @@ uint8_t RssiToPercentage(int dBm)
         return 100;
     return 2 * (dBm + 100);
 }
-#define MEASUREMENTSAMPLETIME 5000
+#define MEASUREMENTSAMPLETIME 10000
+unsigned long last_update_time = 0;
 
 void loop()
 {
-    Serial.println("task measuring...");
-    auto initial_time = millis();
-    analog_input();
-    digital_input();
-    pulse_freq_measurement();
-    readTemperatures();
-
-    uint8_t rssi = RssiToPercentage(WiFi.RSSI());
-    public_data("telemetry", "wifi Signal Strength", rssi);
-    auto final_time = millis();
-    long delay_time = MEASUREMENTSAMPLETIME - (final_time - initial_time);
-    if (delay_time > 0)
+    auto curr_time = millis() - last_update_time;
+    if (curr_time > MEASUREMENTSAMPLETIME)
     {
-        delay(delay_time);
+        Serial.println("task measuring...");
+        Serial.println(curr_time);
+        last_update_time = millis();
+        analog_input();
+        digital_input();
+        pulse_freq_measurement();
+        readTemperatures();
+
+        uint8_t rssi = RssiToPercentage(WiFi.RSSI());
+        public_data("telemetry", "wifi Signal Strength", rssi);
+        send_last_update_time();
     }
+
+    timerWrite(timer, 0);
+    client.loop();
 }
