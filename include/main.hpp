@@ -18,5 +18,7 @@
 void setup_wifi();
 void callback(char* topic, byte* message, unsigned int length);
 uint8_t RssiToPercentage(int dBm);
+void reconnect();
+void setBuzzar(uint8_t buzzar_value);
 
 #endif

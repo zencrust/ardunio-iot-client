@@ -1,7 +1,7 @@
 {
     "device_id":"Chiller4",
-    "mqtt_server": "zencrust.cf",
-    "mqtt_port": "1883",
+    "mqtt_server": "mqtt.zencrust.cf",
+    "mqtt_port": "8883",
     "mqtt_config":{
         "enable":false,
          "user_name": "",
@@ -43,7 +43,7 @@
         "mqtt_id": "fault indication"
     },
     "boot": {
-        "pin": 17
+        "pin": 2
     },
     "mqtt_down":{
         "pin": 23
@@ -64,19 +64,19 @@
         },
         {
             "pin": 25,
-            "mqtt_id": "Tank 3"
-        },
-        {
-            "pin": 26,
-            "mqtt_id": "Tank 4"
-        },
-        {
-            "pin": 27,
             "mqtt_id": "Motor 1"
         },
         {
-            "pin": 32,
+            "pin": 26,
             "mqtt_id": "Motor 2"
+        },
+        {
+            "pin": 27,
+            "mqtt_id": "Motor 3"
+        },
+        {
+            "pin": 32,
+            "mqtt_id": "Motor 4"
         }
     ]
 }
