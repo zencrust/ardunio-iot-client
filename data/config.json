@@ -43,7 +43,7 @@
         "mqtt_id": "fault indication"
     },
     "boot": {
-        "pin": 2
+        "pin": 17
     },
     "mqtt_down":{
         "pin": 23

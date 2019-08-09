@@ -25,9 +25,7 @@ const int ledPin = 2;
 Configuration config;
 const int a = ADC1_CHANNEL_6;
 
-uint8_t buzzer_previous_value = -1;
-uint8_t buzzar_last_milliseconds = 0;
-
+const int ledChannel = 0;
 void setup_wifi()
 {
     delay(10);
@@ -192,33 +190,33 @@ void pulse_freq_measurement()
     }
 }
 
-#define CALCULATE_DUTYCUCLE(x) (x / 2000) * 255
+ #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
 void setBuzzar(uint8_t buzzar_value)
 {
     switch (buzzar_value)
     {
     case BUZZAR_NOERROR:
-        ledcWrite(config.boot.pin, 0);
+        ledcWrite(ledChannel, 0);
         digitalWrite(config.mqtt_fault.pin, LOW);
         Serial.println("BUZZAR_NOERROR");
         break;
     case BUZZAR_WIFI_DOWN:
-        ledcWrite(config.boot.pin, CALCULATE_DUTYCUCLE(500));
+        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(500));
         digitalWrite(config.mqtt_fault.pin, HIGH);
         Serial.println("BUZZAR_WIFI_DOWN");
         break;
     case BUZZAR_MQTT_DOWN:
-        ledcWrite(config.boot.pin, CALCULATE_DUTYCUCLE(250));
+        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(250));
         digitalWrite(config.mqtt_fault.pin, HIGH);
         Serial.println("BUZZAR_MQTT_DOWN");
         break;
     case BUZZAR_STARTUP:
-        ledcWrite(config.boot.pin, CALCULATE_DUTYCUCLE(1000));
+        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(1000));
         digitalWrite(config.mqtt_fault.pin, HIGH);
         Serial.println("BUZZAR_STARTUP");
         break;
     default:
-        digitalWrite(config.boot.pin, HIGH);
+        ledcWrite(ledChannel, 255);
     }
 }
 
@@ -279,17 +277,19 @@ void getFlow()
     pulse_frequency++;
 }
 
-const int ledChannel = 0;
+
 void setup()
 {
     Serial.begin(115200);
     config.load();
+    pinMode(config.boot.pin, OUTPUT);
+    pinMode(config.mqtt_fault.pin, OUTPUT);
+
+
     ledcSetup(ledChannel, 0.5, 8);
     ledcAttachPin(config.boot.pin, ledChannel);
-
-    pinMode(config.mqtt_fault.pin, OUTPUT);
+    
     setBuzzar(BUZZAR_STARTUP);
-
     setupTemperature();
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
