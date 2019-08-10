@@ -35,7 +35,7 @@ struct counter
 {
     uint8_t pin;
     String mqtt_id;
-    
+    bool enabled;
     //in milliseconds
     uint16_t apature_time;
 };

@@ -327,13 +327,16 @@ void setup()
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     reconnect();
 
-    pinMode(config.counter.pin, INPUT);
+    
     for (auto &&channel : config.di)
     {
         pinMode(channel.pin, INPUT);
     }
 
-    attachInterrupt(config.counter.pin, getFlow, FALLING);
+    if(config.counter.enabled){
+        pinMode(config.counter.pin, INPUT);
+        attachInterrupt(config.counter.pin, getFlow, FALLING);
+    }
 
     timerWrite(timer, 0);
     timerAttachInterrupt(timer, &resetModule, true);  //attach callback
@@ -349,7 +352,7 @@ uint8_t RssiToPercentage(int dBm)
         return 100;
     return 2 * (dBm + 100);
 }
-#define MEASUREMENTSAMPLETIME 10000
+#define MEASUREMENTSAMPLETIME 5000
 unsigned long last_update_time = 0;
 
 void loop()
@@ -362,7 +365,10 @@ void loop()
         last_update_time = millis();
         analog_input();
         digital_input();
-        pulse_freq_measurement();
+        if(config.counter.enabled){
+            pulse_freq_measurement();
+        }
+
         readTemperatures();
 
         uint8_t rssi = RssiToPercentage(WiFi.RSSI());

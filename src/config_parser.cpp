@@ -65,6 +65,8 @@ void Configuration::load(void)
 
     counter.pin = (uint8_t)config_json["freq"]["pin"];
     counter.mqtt_id = String((const char *)config_json["freq"]["mqtt_id"]);
+    counter.enabled = (bool)config_json["freq"]["enabled"];
+
     boot.pin = (uint8_t)config_json["boot"]["pin"];
     mqtt_fault.pin = (uint8_t)config_json["mqtt_down"]["pin"];
     Serial.println((int)boot.pin);
