@@ -1,6 +1,6 @@
 {
-    "device_id":"TestChiller4",
-    "mqtt_server": "www.zencrust.cf",
+    "device_id":"Chiller2",
+    "mqtt_server": "mqtt.zencrust.cf",
     "mqtt_port": "8883",
     "mqtt_config":{
         "enable":false,
@@ -8,8 +8,8 @@
           "password": ""
          },
     "wifi":{
-        "ssid": "karthikphone",
-         "password" : "D@taR0ute1!"
+        "ssid": "ChillerMonitor",
+         "password" : "ChillerMonitor@1"
     },
     "adc":[],
     "di":[{
@@ -21,6 +21,16 @@
             "pin": 34,
             "activelow": true,
             "mqtt_id": "Chiller Healthy"
+        },
+        {
+            "pin": 35,
+            "activelow": false,
+            "mqtt_id": "Chiller Fault 2"
+        },
+        {
+            "pin": 36,
+            "activelow": true,
+            "mqtt_id": "Chiller Healthy 2"
         },
         {
             "pin": 16,

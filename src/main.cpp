@@ -2,14 +2,24 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <driver/adc.h>
-
-#include "frequency_count.h"
-#include "config_parser.hpp"
-#include "time.h"
+#include <time.h>
 #include <OneWire.h>
-#include "esp_system.h"
 #include <DallasTemperature.h>
 
+#include "config_parser.hpp"
+#include "cert.h"
+#include "esp_system.h"
+
+#define POWER_ON_RESET_VAL 85
+#define WIFI_CONNECT_TIMEOUT 10000 // in ms
+#define TAG_TELEMETRY "telemetry"
+#define TAG_UPDATE_TIME "last update time"
+#define TAG_WIFI_SIGNAL "wifi Signal Strength"
+#define TAG_DIO "dio"
+#define TAG_TEMPERATURE "temp"
+#define TAG_FREQUENCY "freq"
+
+const int MEASUREMENTSAMPLETIME  = 5000;
 const int TEMPERATURE_PRECISION = 10;
 const int TEMPERATURE_RETRIES = 5;
 
@@ -18,9 +28,6 @@ const char *ntpServer = "in.pool.ntp.org";
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
 
-WiFiClientSecure espClient;
-//WiFiClient espClient;
-PubSubClient client(espClient);
 long lastMsg = 0;
 char msg[50];
 int value = 0;
@@ -28,12 +35,22 @@ int value = 0;
 // LED Pin
 const int ledPin = 2;
 Configuration config;
-const int a = ADC1_CHANNEL_6;
 
 const int ledChannel = 0;
 
-const int wdtTimeout = 20000;  //time in ms to trigger the watchdog
+const uint64_t wdtTimeout = 90;  //time in sec to trigger the watchdog
 hw_timer_t *timer = NULL;
+std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire>> temperatures;
+
+int literpermin;
+unsigned long currentTime, loopTime;
+volatile unsigned int pulse_frequency = 0;
+
+
+WiFiClientSecure espClient;
+
+//WiFiClient espClient;
+PubSubClient client(espClient);
 
 void setup_wifi()
 {
@@ -51,18 +68,15 @@ void setup_wifi()
         WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
         WiFi.setHostname(config.device_id.c_str());
         setBuzzar(BUZZAR_WIFI_DOWN);
-        int i = 0;
-        while (!WiFi.isConnected())
+        
+        auto initial_time = millis();
+        //wait for 10 seconds
+        do
         {
             delay(500);
             Serial.print(".");
-            if (i > 20)
-            {
-                break;
-            }
-
-            i++;
         }
+        while ((millis() - initial_time) < WIFI_CONNECT_TIMEOUT && (!WiFi.isConnected()));
 
     } while (!WiFi.isConnected());
     espClient.setNoDelay(true);
@@ -88,15 +102,9 @@ void public_data(String function, String channel, T value, bool retained = false
     }
 
     String topic_buf = config.device_id + '/' + function + '/' + channel;
-    // DEBUG("publish:");
-    // DEBUG(topic_buf);
-    // DEBUG("value:");
-    // DEBUG(value);
     client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
 
-std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire>> temperatures;
-std::vector<int> disconnected_times;
 void setupTemperature()
 {
     Serial.println("setting setupTemperature");
@@ -104,7 +112,6 @@ void setupTemperature()
     for (auto &&channel : config.temperature_onewire)
     {
         temperatures.emplace_back(index, channel.mqtt_id, DallasTemperature(), OneWire(channel.pin));
-        disconnected_times.push_back(0);
         index++;
     }
 
@@ -145,12 +152,10 @@ void readTemperatures()
 
             auto Cel = std::get<2>(temp_channel).getTempCByIndex(0);
             Serial.println(Cel);
-
-            if (DEVICE_DISCONNECTED_C != Cel)
+            auto cmp_val = int(Cel);
+            if (DEVICE_DISCONNECTED_C != cmp_val && cmp_val != POWER_ON_RESET_VAL)
             {                
-                public_data("temp", std::get<1>(temp_channel), Cel);
-                auto index = std::get<0>(temp_channel);
-                disconnected_times[index] = 0;
+                public_data(TAG_TEMPERATURE, std::get<1>(temp_channel), Cel);
                 isWritten = true;
                 break;
             }
@@ -184,13 +189,10 @@ void digital_input()
             val = val ? 0 : 1;
         }
 
-        public_data("dio", channel.mqtt_id, val);
+        public_data(TAG_DIO, channel.mqtt_id, val);
     }
 }
 
-int literpermin;
-unsigned long currentTime, loopTime;
-volatile unsigned int pulse_frequency = 0;
 
 void pulse_freq_measurement()
 {
@@ -200,7 +202,7 @@ void pulse_freq_measurement()
     if (currentTime >= (loopTime + 1000))
     {
         loopTime = currentTime;
-        public_data("freq", config.counter.mqtt_id, pulse_frequency);
+        public_data(TAG_FREQUENCY, config.counter.mqtt_id, pulse_frequency);
         pulse_frequency = 0;
     }
 }
@@ -288,7 +290,6 @@ void reconnect()
     setBuzzar(BUZZAR_NOERROR);
 }
 
-byte sensorInterrupt = 0;
 void getFlow()
 {
     pulse_frequency++;
@@ -298,7 +299,7 @@ void send_last_update_time()
 {
     time_t now;
     time(&now);
-    public_data("telemetry", "last update time", now, true);
+    public_data(TAG_TELEMETRY, TAG_UPDATE_TIME, now, true);
 }
 
 
@@ -307,10 +308,22 @@ void IRAM_ATTR resetModule() {
   esp_restart();
 }
 
+void set_client_cert()
+{
+    SPIFFS.begin();
+    
+    auto pub_key = SPIFFS.open(CLIENT_CERT_PUBLIC_KEY_PATH);
+    auto priv_key = SPIFFS.open(CLIENT_CERT_PRIVATE_KEY_PATH);
 
+    espClient.loadCertificate(pub_key, pub_key.size());
+    espClient.loadPrivateKey(priv_key, pub_key.size());
+
+}
 void setup()
 {
     timer = timerBegin(0, 80, true);                  //timer 0, div 80
+    //espClient.setCACert(zencrust_cert);
+
     Serial.begin(115200);
     config.load();
     pinMode(config.boot.pin, OUTPUT);
@@ -340,7 +353,7 @@ void setup()
 
     timerWrite(timer, 0);
     timerAttachInterrupt(timer, &resetModule, true);  //attach callback
-    timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
+    timerAlarmWrite(timer, wdtTimeout * 1000 * 1000, false); //set time in us
     timerAlarmEnable(timer);                          //enable interrupt
 }
 
@@ -352,7 +365,7 @@ uint8_t RssiToPercentage(int dBm)
         return 100;
     return 2 * (dBm + 100);
 }
-#define MEASUREMENTSAMPLETIME 5000
+
 unsigned long last_update_time = 0;
 
 void loop()
@@ -372,7 +385,7 @@ void loop()
         readTemperatures();
 
         uint8_t rssi = RssiToPercentage(WiFi.RSSI());
-        public_data("telemetry", "wifi Signal Strength", rssi);
+        public_data(TAG_TELEMETRY, TAG_WIFI_SIGNAL, rssi);
         send_last_update_time();
     }
 
