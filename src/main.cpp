@@ -92,6 +92,7 @@ void public_data(String function, String channel, T value, bool retained = false
 
 void switch_pressed_callback(uint8_t pinIn)
 {
+    digitalWrite(config.lamp_do.pin, 1);
     public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
 }
 
@@ -99,6 +100,7 @@ void switch_released_callback(uint8_t pinIn)
 {
     time_t now;
     time(&now);
+    digitalWrite(config.lamp_do.pin, 0);
     public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
 }
 
