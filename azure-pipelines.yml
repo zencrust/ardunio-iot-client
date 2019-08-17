@@ -23,12 +23,11 @@ steps:
 
 - script: |
     platformio run
-    platformio run --target uploadfs || true
   displayName: 'Build firmware'
 
 - task: CopyFiles@2
   inputs:
-    SourceFolder: $(Build.SourcesDirectory)/.pio/build/esp32doit-devkit-v1/
+    SourceFolder: $(Build.SourcesDirectory)/.pio/build/esp_wroom_02/
     Contents: '*.bin'
     TargetFolder: $(Build.ArtifactStagingDirectory)
 
