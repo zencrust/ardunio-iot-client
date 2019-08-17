@@ -2,12 +2,6 @@
 #define __CONFIG_FILE_H__
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <SPI.h>
-#include <SPIFFS.h>
-#include <vector>
-
-#define CONFIG_FILE "/config.json"
 
 struct adc
 {
@@ -19,7 +13,6 @@ struct adc
 struct di
 {
     uint8_t pin;
-    bool activelow;
     String mqtt_id;
 };
 
@@ -66,13 +59,10 @@ class Configuration
     struct mqtt_config mqtt_config;
     struct wifi wifi;
 
-    std::vector<struct adc> adc;
-    std::vector<struct di> di;
-    std::vector<Temperature> temperature_onewire;
-    struct counter counter;
-    struct boot mqtt_fault;
+    struct di switch_inp;
+    struct di lamp_do;
     struct boot boot;
-    void load();
+    Configuration();
 };
 
 #endif

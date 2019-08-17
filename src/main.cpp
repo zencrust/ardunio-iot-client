@@ -1,14 +1,13 @@
 #include <main.hpp>
-#include <WiFiClientSecure.h>
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <driver/adc.h>
 #include <time.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-
+#include "InputDebounce.h"
 #include "config_parser.hpp"
-#include "cert.h"
-#include "esp_system.h"
+
+#define MEASUREMENTSAMPLETIME 1000
+#define WDTIMEOUT 90000
+#define DEBOUNCE_DELAY 750
 
 #define POWER_ON_RESET_VAL 85
 #define WIFI_CONNECT_TIMEOUT 10000 // in ms
@@ -16,12 +15,6 @@
 #define TAG_UPDATE_TIME "last update time"
 #define TAG_WIFI_SIGNAL "wifi Signal Strength"
 #define TAG_DIO "dio"
-#define TAG_TEMPERATURE "temp"
-#define TAG_FREQUENCY "freq"
-
-const int MEASUREMENTSAMPLETIME  = 5000;
-const int TEMPERATURE_PRECISION = 10;
-const int TEMPERATURE_RETRIES = 5;
 
 //#define DEBUG(...) ESP_LOGD(__func__, ...)
 const char *ntpServer = "in.pool.ntp.org";
@@ -39,24 +32,17 @@ Configuration config;
 const int ledChannel = 0;
 
 const uint64_t wdtTimeout = 90;  //time in sec to trigger the watchdog
-hw_timer_t *timer = NULL;
-std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire>> temperatures;
 
-int literpermin;
-unsigned long currentTime, loopTime;
-volatile unsigned int pulse_frequency = 0;
+// WiFiClientSecure espClient;
 
-
-WiFiClientSecure espClient;
-
-//WiFiClient espClient;
+WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup_wifi()
 {
     delay(10);
-    timerWrite(timer, 0);
     // We start by connecting to a WiFi network
+    ESP.wdtFeed();
     do
     {
         //espClient.setCACert(root_ca);
@@ -66,7 +52,6 @@ void setup_wifi()
 
         WiFi.disconnect();
         WiFi.begin(config.wifi.ssid.c_str(), config.wifi.password.c_str());
-        WiFi.setHostname(config.device_id.c_str());
         setBuzzar(BUZZAR_WIFI_DOWN);
         
         auto initial_time = millis();
@@ -105,106 +90,16 @@ void public_data(String function, String channel, T value, bool retained = false
     client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
 
-void setupTemperature()
+void switch_pressed_callback(uint8_t pinIn)
 {
-    Serial.println("setting setupTemperature");
-    uint8_t index = 0;
-    for (auto &&channel : config.temperature_onewire)
-    {
-        temperatures.emplace_back(index, channel.mqtt_id, DallasTemperature(), OneWire(channel.pin));
-        index++;
-    }
-
-    for (auto &&channel : temperatures)
-    {
-        std::get<2>(channel).setOneWire(&std::get<3>(channel));
-        std::get<2>(channel).setResolution(TEMPERATURE_PRECISION);
-    }
-
-    Serial.println("setting setupTemperature done");
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
 }
 
-void readTemperatures()
+void switch_released_callback(uint8_t pinIn)
 {
-    for (auto &&temp_channel : temperatures)
-    {
-        std::get<2>(temp_channel).setWaitForConversion(false);
-        std::get<2>(temp_channel).requestTemperatures();
-    }
-    for (auto &&temp_channel : temperatures)
-    {
-        int retry = 0;
-        bool isWritten = false;
-        do
-        {
-            Serial.println(std::get<1>(temp_channel));
-            
-            int timeToWaitms = (std::get<2>(temp_channel).millisToWaitForConversion(TEMPERATURE_PRECISION)) + 30; //give 30ms more time to get temp
-            auto initialTime = millis();
-            do
-            {
-                delay(10);
-                if ((millis() - initialTime) > timeToWaitms)
-                {
-                    break;
-                }
-            } while (!std::get<2>(temp_channel).isConversionComplete());
-
-            auto Cel = std::get<2>(temp_channel).getTempCByIndex(0);
-            Serial.println(Cel);
-            auto cmp_val = int(Cel);
-            if (DEVICE_DISCONNECTED_C != cmp_val && cmp_val != POWER_ON_RESET_VAL)
-            {                
-                public_data(TAG_TEMPERATURE, std::get<1>(temp_channel), Cel);
-                isWritten = true;
-                break;
-            }
-            retry++;
-        }
-        while (retry < TEMPERATURE_RETRIES);
-        if (!isWritten)
-        {
-            Serial.println("write disconnected");
-            public_data("temp", std::get<1>(temp_channel), "Disconnected");
-        }
-    }
-}
-
-void analog_input()
-{
-    for (auto &&channel : config.adc)
-    {
-        int32_t val = analogRead(channel.pin);
-        public_data("aio", channel.mqtt_id, val);
-    }
-}
-
-void digital_input()
-{
-    for (auto &&channel : config.di)
-    {
-        int32_t val = digitalRead(channel.pin);
-        if (channel.activelow)
-        {
-            val = val ? 0 : 1;
-        }
-
-        public_data(TAG_DIO, channel.mqtt_id, val);
-    }
-}
-
-
-void pulse_freq_measurement()
-{
-    currentTime = millis();
-
-    //cannot measure less than 2hz
-    if (currentTime >= (loopTime + 1000))
-    {
-        loopTime = currentTime;
-        public_data(TAG_FREQUENCY, config.counter.mqtt_id, pulse_frequency);
-        pulse_frequency = 0;
-    }
+    time_t now;
+    time(&now);
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
 }
 
 #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
@@ -213,27 +108,23 @@ void setBuzzar(uint8_t buzzar_value)
     switch (buzzar_value)
     {
     case BUZZAR_NOERROR:
-        ledcWrite(ledChannel, 0);
-        digitalWrite(config.mqtt_fault.pin, LOW);
+        digitalWrite(config.boot.pin, LOW);
         Serial.println("BUZZAR_NOERROR");
         break;
     case BUZZAR_WIFI_DOWN:
-        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(500));
-        digitalWrite(config.mqtt_fault.pin, HIGH);
+        digitalWrite(config.boot.pin, HIGH);
         Serial.println("BUZZAR_WIFI_DOWN");
         break;
     case BUZZAR_MQTT_DOWN:
-        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(250));
-        digitalWrite(config.mqtt_fault.pin, HIGH);
+        digitalWrite(config.boot.pin, HIGH);
         Serial.println("BUZZAR_MQTT_DOWN");
         break;
     case BUZZAR_STARTUP:
-        ledcWrite(ledChannel, CALCULATE_DUTYCUCLE(1000));
-        digitalWrite(config.mqtt_fault.pin, HIGH);
+        digitalWrite(config.boot.pin, HIGH);
         Serial.println("BUZZAR_STARTUP");
         break;
     default:
-        ledcWrite(ledChannel, 255);
+        digitalWrite(config.boot.pin, HIGH);
     }
 }
 
@@ -245,7 +136,7 @@ void reconnect()
 {
     // Loop until we're reconnected
     Serial.print("reconnecting...");
-    timerWrite(timer, 0);
+    ESP.wdtFeed();
     while (!client.connected())
     {
         setBuzzar(BUZZAR_MQTT_DOWN);
@@ -290,11 +181,6 @@ void reconnect()
     setBuzzar(BUZZAR_NOERROR);
 }
 
-void getFlow()
-{
-    pulse_frequency++;
-}
-
 void send_last_update_time()
 {
     time_t now;
@@ -302,59 +188,25 @@ void send_last_update_time()
     public_data(TAG_TELEMETRY, TAG_UPDATE_TIME, now, true);
 }
 
-
-void IRAM_ATTR resetModule() {
-  ets_printf("reboot\n");
-  esp_restart();
-}
-
-void set_client_cert()
-{
-    SPIFFS.begin();
-    
-    auto pub_key = SPIFFS.open(CLIENT_CERT_PUBLIC_KEY_PATH);
-    auto priv_key = SPIFFS.open(CLIENT_CERT_PRIVATE_KEY_PATH);
-
-    espClient.loadCertificate(pub_key, pub_key.size());
-    espClient.loadPrivateKey(priv_key, pub_key.size());
-
-}
+static InputDebounce switch_pressed;
 void setup()
 {
-    timer = timerBegin(0, 80, true);                  //timer 0, div 80
-    //espClient.setCACert(zencrust_cert);
-
     Serial.begin(115200);
-    config.load();
     pinMode(config.boot.pin, OUTPUT);
-    pinMode(config.mqtt_fault.pin, OUTPUT);
-
-    ledcSetup(ledChannel, 0.5, 8);
-    ledcAttachPin(config.boot.pin, ledChannel);
 
     setBuzzar(BUZZAR_STARTUP);
-    setupTemperature();
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     reconnect();
 
-    
-    for (auto &&channel : config.di)
-    {
-        pinMode(channel.pin, INPUT);
-    }
-
-    if(config.counter.enabled){
-        pinMode(config.counter.pin, INPUT);
-        attachInterrupt(config.counter.pin, getFlow, FALLING);
-    }
-
-    timerWrite(timer, 0);
-    timerAttachInterrupt(timer, &resetModule, true);  //attach callback
-    timerAlarmWrite(timer, wdtTimeout * 1000 * 1000, false); //set time in us
-    timerAlarmEnable(timer);                          //enable interrupt
+    switch_pressed.registerCallbacks(switch_pressed_callback, switch_released_callback, NULL, NULL);
+    switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_EXT_PULL_DOWN_RES, 0, 
+    InputDebounce::ST_NORMALLY_OPEN);
+    pinMode(config.switch_inp.pin, INPUT);
+    pinMode(config.lamp_do.pin, OUTPUT);
+    ESP.wdtEnable(WDTIMEOUT);
 }
 
 uint8_t RssiToPercentage(int dBm)
@@ -367,28 +219,21 @@ uint8_t RssiToPercentage(int dBm)
 }
 
 unsigned long last_update_time = 0;
-
+unsigned long last_update_time_telemetry = 0;
 void loop()
 {
-    auto curr_time = millis() - last_update_time;
-    if (curr_time > MEASUREMENTSAMPLETIME)
+    switch_pressed.process(millis());
+    auto curr_time_tele = millis() - last_update_time_telemetry;
+
+    if(curr_time_tele > 5000)
     {
-        Serial.println("task measuring...");
-        Serial.println(curr_time);
-        last_update_time = millis();
-        analog_input();
-        digital_input();
-        if(config.counter.enabled){
-            pulse_freq_measurement();
-        }
-
-        readTemperatures();
-
         uint8_t rssi = RssiToPercentage(WiFi.RSSI());
         public_data(TAG_TELEMETRY, TAG_WIFI_SIGNAL, rssi);
         send_last_update_time();
+        last_update_time_telemetry = millis();
     }
 
-    timerWrite(timer, 0);
+    ESP.wdtFeed();
+    delay(100); // [ms]
     client.loop();
 }
