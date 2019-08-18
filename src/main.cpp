@@ -192,6 +192,13 @@ void send_last_update_time()
     public_data(TAG_TELEMETRY, TAG_UPDATE_TIME, now, true);
 }
 
+void print_current_time()
+{
+    time_t now;
+    time(&now);
+    Serial.println(now);
+}
+
 static InputDebounce switch_pressed;
 void setup()
 {
@@ -210,6 +217,7 @@ void setup()
     InputDebounce::ST_NORMALLY_CLOSED);
     switch_released_callback(12);  
     ESP.wdtEnable(WDTIMEOUT);
+    print_current_time();
 }
 
 uint8_t RssiToPercentage(int dBm)

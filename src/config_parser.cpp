@@ -7,7 +7,7 @@ Configuration::Configuration(void)
 {
     Serial.println("loading configuration....");
     device_id = "station1";
-    mqtt_server = "zencrust.cf";
+    mqtt_server = "SmartDashBoard.local";
     mqtt_port = 1883;
     mqtt_config = {
         false, "", ""
