@@ -17,8 +17,8 @@
 #define TAG_DIO "dio"
 
 //#define DEBUG(...) ESP_LOGD(__func__, ...)
-const char *ntpServer = "in.pool.ntp.org";
-const long gmtOffset_sec = 19800;
+const char *ntpServer = "SmartDashBoard.local";
+const long gmtOffset_sec = 0;
 const int daylightOffset_sec = 0;
 
 long lastMsg = 0;
@@ -33,7 +33,7 @@ const int ledChannel = 0;
 
 const uint64_t wdtTimeout = 90;  //time in sec to trigger the watchdog
 
-// WiFiClientSecure espClient;
+//WiFiClientSecure espClient;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -86,22 +86,24 @@ void public_data(String function, String channel, T value, bool retained = false
         reconnect();
     }
 
-    String topic_buf = config.device_id + '/' + function + '/' + channel;
+    String topic_buf = "partalarm/" + config.device_id + '/' + function + '/' + channel;
     client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
 
 void switch_pressed_callback(uint8_t pinIn)
 {
-    digitalWrite(config.lamp_do.pin, 1);
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
+    time_t now;
+    time(&now);
+    digitalWrite(config.lamp_do.pin, 0);
+    Serial.println("Switch Pressed");
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
 }
 
 void switch_released_callback(uint8_t pinIn)
 {
-    time_t now;
-    time(&now);
-    digitalWrite(config.lamp_do.pin, 0);
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
+    digitalWrite(config.lamp_do.pin, 1);
+    Serial.println("Switch Released");
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
 }
 
 #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
@@ -150,7 +152,7 @@ void reconnect()
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         boolean result;
-        String willMessage = config.device_id + "/" + "heartbeat";
+        String willMessage = "partalarm/" + config.device_id + "/" + "heartbeat";
         if (config.mqtt_config.enable)
         {
             result = client.connect(config.device_id.c_str(), config.mqtt_config.user_name.c_str(),
@@ -195,7 +197,7 @@ void setup()
 {
     Serial.begin(115200);
     pinMode(config.boot.pin, OUTPUT);
-
+     
     setBuzzar(BUZZAR_STARTUP);
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
@@ -204,10 +206,9 @@ void setup()
     reconnect();
 
     switch_pressed.registerCallbacks(switch_pressed_callback, switch_released_callback, NULL, NULL);
-    switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_EXT_PULL_DOWN_RES, 0, 
-    InputDebounce::ST_NORMALLY_OPEN);
-    pinMode(config.switch_inp.pin, INPUT);
-    pinMode(config.lamp_do.pin, OUTPUT);
+    switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES, 0, 
+    InputDebounce::ST_NORMALLY_CLOSED);
+    switch_released_callback(12);  
     ESP.wdtEnable(WDTIMEOUT);
 }
 

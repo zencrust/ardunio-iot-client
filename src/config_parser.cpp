@@ -6,7 +6,7 @@
 Configuration::Configuration(void)
 {
     Serial.println("loading configuration....");
-    device_id = "partalarm\\station1";
+    device_id = "station1";
     mqtt_server = "zencrust.cf";
     mqtt_port = 1883;
     mqtt_config = {
@@ -14,14 +14,14 @@ Configuration::Configuration(void)
     };
 
     wifi = {
-        "",
-        ""
+        "Harsha_2p4",
+        "passw0rD"
     };
 
     boot = {
-        12
+        2
     };
 
-    switch_inp = {1, "Swicth Pressed"};
-    lamp_do = {2, "Tower Light ON"};
+    switch_inp = {5, "Swicth Pressed"};
+    lamp_do = {13, "Tower Light ON"};
 }
