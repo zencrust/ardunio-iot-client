@@ -27,7 +27,7 @@ steps:
 
 - task: CopyFiles@2
   inputs:
-    SourceFolder: $(Build.SourcesDirectory)/.pio/build/esp_wroom_02/
+    SourceFolder: $(Build.SourcesDirectory)/.pio/build/esp01_1m/
     Contents: '*.bin'
     TargetFolder: $(Build.ArtifactStagingDirectory)
 
