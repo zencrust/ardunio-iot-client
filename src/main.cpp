@@ -94,14 +94,14 @@ void switch_pressed_callback(uint8_t pinIn)
 {
     time_t now;
     time(&now);
-    digitalWrite(config.lamp_do.pin, 0);
+    digitalWrite(config.lamp_do.pin, LOW);
     Serial.println("Switch Pressed");
     public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
 }
 
 void switch_released_callback(uint8_t pinIn)
 {
-    digitalWrite(config.lamp_do.pin, 1);
+    digitalWrite(config.lamp_do.pin, HIGH);
     Serial.println("Switch Released");
     public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
 }
@@ -192,24 +192,46 @@ void send_last_update_time()
     public_data(TAG_TELEMETRY, TAG_UPDATE_TIME, now, true);
 }
 
+void print_current_time()
+{
+    time_t now;
+    time(&now);
+    Serial.println(now);
+}
+
+void wait_for_ntp()
+{
+    time_t now;
+    time(&now);
+    Serial.println("Waiting for NTP");
+    while(now < 1566121974){
+        delay(50);
+        Serial.print(".");
+        time(&now);
+    }
+}
+
 static InputDebounce switch_pressed;
 void setup()
 {
     Serial.begin(115200);
     pinMode(config.boot.pin, OUTPUT);
-     
+    pinMode(config.lamp_do.pin, OUTPUT); 
+    digitalWrite(config.lamp_do.pin, HIGH);
+
     setBuzzar(BUZZAR_STARTUP);
     setup_wifi();
     client.setServer(config.mqtt_server.c_str(), config.mqtt_port);
     client.setCallback(callback);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     reconnect();
-
+    wait_for_ntp();
     switch_pressed.registerCallbacks(switch_pressed_callback, switch_released_callback, NULL, NULL);
     switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES, 0, 
     InputDebounce::ST_NORMALLY_CLOSED);
     switch_released_callback(12);  
     ESP.wdtEnable(WDTIMEOUT);
+    print_current_time();
 }
 
 uint8_t RssiToPercentage(int dBm)
