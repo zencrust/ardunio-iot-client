@@ -94,14 +94,14 @@ void switch_pressed_callback(uint8_t pinIn)
 {
     time_t now;
     time(&now);
-    digitalWrite(config.lamp_do.pin, LOW);
+    digitalWrite(config.lamp_do.pin, HIGH);
     Serial.println("Switch Pressed");
     public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
 }
 
 void switch_released_callback(uint8_t pinIn)
 {
-    digitalWrite(config.lamp_do.pin, HIGH);
+    digitalWrite(config.lamp_do.pin, LOW);
     Serial.println("Switch Released");
     public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
 }
@@ -112,23 +112,23 @@ void setBuzzar(uint8_t buzzar_value)
     switch (buzzar_value)
     {
     case BUZZAR_NOERROR:
-        digitalWrite(config.boot.pin, LOW);
+        digitalWrite(config.boot.pin, HIGH);
         Serial.println("BUZZAR_NOERROR");
         break;
     case BUZZAR_WIFI_DOWN:
-        digitalWrite(config.boot.pin, HIGH);
+        digitalWrite(config.boot.pin, LOW);
         Serial.println("BUZZAR_WIFI_DOWN");
         break;
     case BUZZAR_MQTT_DOWN:
-        digitalWrite(config.boot.pin, HIGH);
+        digitalWrite(config.boot.pin, LOW);
         Serial.println("BUZZAR_MQTT_DOWN");
         break;
     case BUZZAR_STARTUP:
-        digitalWrite(config.boot.pin, HIGH);
+        digitalWrite(config.boot.pin, LOW);
         Serial.println("BUZZAR_STARTUP");
         break;
     default:
-        digitalWrite(config.boot.pin, HIGH);
+        digitalWrite(config.boot.pin, LOW);
     }
 }
 
@@ -217,7 +217,7 @@ void setup()
     Serial.begin(115200);
     pinMode(config.boot.pin, OUTPUT);
     pinMode(config.lamp_do.pin, OUTPUT); 
-    digitalWrite(config.lamp_do.pin, HIGH);
+    digitalWrite(config.lamp_do.pin, LOW);
 
     setBuzzar(BUZZAR_STARTUP);
     setup_wifi();
