@@ -4,14 +4,14 @@
 
 static const char* station_names[] = 
 {
-    "XFA ASSEMBLY",
-    "XFDPS ASSEMBLY",
-    "XGA ASSEMBLY",
-    "XPS ASSEMBLY",
-    "RGA ASSEMBLY",
-    "RPS ASSEMBLY",
-    "SSSA ASSEMBLY",
-    "SSSPS ASSEMBLY",
+    "XFA ASSEMBLY", //0
+    "XFDPS ASSEMBLY", //1
+    "XGA ASSEMBLY", //2
+    "XPS ASSEMBLY", //3
+    "RGA ASSEMBLY", //4
+    "RPS ASSEMBLY", //5
+    "SSSA ASSEMBLY", //6
+    "SSSPS ASSEMBLY", //7
 };
 
 // Loads the configuration from a file
@@ -34,6 +34,6 @@ Configuration::Configuration(void)
         12
     };
 
-    switch_inp = {4, "Swicth Pressed"};
+    switch_inp = {4, "Switch Pressed"};
     lamp_do = {13, "Tower Light ON"};
 }

@@ -7,7 +7,7 @@
 
 #define MEASUREMENTSAMPLETIME 1000
 #define WDTIMEOUT 90000
-#define DEBOUNCE_DELAY 750
+#define DEBOUNCE_DELAY 1000
 
 #define POWER_ON_RESET_VAL 85
 #define WIFI_CONNECT_TIMEOUT 10000 // in ms
@@ -92,18 +92,29 @@ void public_data(String function, String channel, T value, bool retained = false
 
 void switch_pressed_callback(uint8_t pinIn)
 {
-    time_t now;
-    time(&now);
     digitalWrite(config.lamp_do.pin, HIGH);
     Serial.println("Switch Pressed");
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, now, true);
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, 1, false);
 }
+
+void switch_untill_pressed_callback(uint8_t pinIn, unsigned long duration)
+{
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, duration/1000, false);
+    delay(1000);
+}
+
+void switch_untill_released_callback(uint8_t pinIn, unsigned long duration)
+{
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, false);
+    delay(3000);
+}
+
 
 void switch_released_callback(uint8_t pinIn)
 {
     digitalWrite(config.lamp_do.pin, LOW);
     Serial.println("Switch Released");
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, true);
+    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, false);
 }
 
 #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
@@ -225,8 +236,10 @@ void setup()
     client.setCallback(callback);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     reconnect();
-    wait_for_ntp();
-    switch_pressed.registerCallbacks(switch_pressed_callback, switch_released_callback, NULL, NULL);
+    // wait_for_ntp();
+    switch_pressed.registerCallbacks(switch_pressed_callback, switch_released_callback,
+     switch_untill_pressed_callback,
+     switch_untill_released_callback);
     switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES, 0, 
     InputDebounce::ST_NORMALLY_CLOSED);
     switch_released_callback(12);  
@@ -254,7 +267,7 @@ void loop()
     {
         uint8_t rssi = RssiToPercentage(WiFi.RSSI());
         public_data(TAG_TELEMETRY, TAG_WIFI_SIGNAL, rssi);
-        send_last_update_time();
+        //send_last_update_time();
         last_update_time_telemetry = millis();
     }
 
