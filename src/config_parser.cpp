@@ -35,5 +35,6 @@ Configuration::Configuration(void)
     };
 
     switch_inp = {4, "Switch Pressed"};
+    switch2_inp = {5, "Switch2 Pressed"};
     lamp_do = {13, "Tower Light ON"};
 }

@@ -60,6 +60,7 @@ class Configuration
     struct wifi wifi;
 
     struct di switch_inp;
+    struct di switch2_inp;
     struct di lamp_do;
     struct boot boot;
     Configuration();

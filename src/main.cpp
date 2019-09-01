@@ -89,32 +89,36 @@ void public_data(String function, String channel, T value, bool retained = false
     String topic_buf = "partalarm/" + config.device_id + '/' + function + '/' + channel;
     client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
+#define GET_MQTT_ID(pinIn) pinIn == config.switch_inp.pin ? config.switch_inp.mqtt_id : config.switch2_inp.mqtt_id
+
+String get_switch_index(uint8_t pinIn) {
+    return pinIn == config.switch_inp.pin ? "0" : "1";
+}
 
 void switch_pressed_callback(uint8_t pinIn)
 {
     digitalWrite(config.lamp_do.pin, HIGH);
-    Serial.println("Switch Pressed");
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, 1, false);
+    Serial.println("Switch"  + get_switch_index(pinIn)  + "Pressed");
+    public_data(TAG_DIO, GET_MQTT_ID(pinIn), 1, false);
 }
 
 void switch_untill_pressed_callback(uint8_t pinIn, unsigned long duration)
 {
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, duration/1000, false);
+    public_data(TAG_DIO, GET_MQTT_ID(pinIn), duration/1000, false);
     delay(1000);
 }
 
 void switch_untill_released_callback(uint8_t pinIn, unsigned long duration)
 {
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, false);
+    public_data(TAG_DIO, GET_MQTT_ID(pinIn), 0, false);
     delay(3000);
 }
-
 
 void switch_released_callback(uint8_t pinIn)
 {
     digitalWrite(config.lamp_do.pin, LOW);
-    Serial.println("Switch Released");
-    public_data(TAG_DIO, config.switch_inp.mqtt_id, 0, false);
+    Serial.println("Switch"  + get_switch_index(pinIn)  + "Released");
+    public_data(TAG_DIO, GET_MQTT_ID(pinIn), 0, false);
 }
 
 #define CALCULATE_DUTYCUCLE(x) (x * 255) / 2000
@@ -223,6 +227,7 @@ void wait_for_ntp()
 }
 
 static InputDebounce switch_pressed;
+static InputDebounce switch_pressed2;
 void setup()
 {
     Serial.begin(115200);
@@ -242,7 +247,16 @@ void setup()
      switch_untill_released_callback);
     switch_pressed.setup(config.switch_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES, 0, 
     InputDebounce::ST_NORMALLY_CLOSED);
-    switch_released_callback(12);  
+
+    switch_pressed2.registerCallbacks(switch_pressed_callback, switch_released_callback,
+     switch_untill_pressed_callback,
+     switch_untill_released_callback);
+    switch_pressed2.setup(config.switch2_inp.pin, DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES, 0, 
+    InputDebounce::ST_NORMALLY_CLOSED);
+
+    switch_released_callback(config.switch_inp.pin);  
+    switch_released_callback(config.switch2_inp.pin);
+    
     ESP.wdtEnable(WDTIMEOUT);
     print_current_time();
 }
