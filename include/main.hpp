@@ -5,7 +5,7 @@
 #else
 #define ARDUINO_RUNNING_CORE 1
 #endif
-#define MQTT_KEEPALIVE 15
+#define MQTT_KEEPALIVE 60
 
 #define BUZZAR_NOERROR 0
 #define BUZZAR_WIFI_DOWN 1

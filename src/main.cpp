@@ -19,9 +19,9 @@
 #define TAG_TEMPERATURE "temp"
 #define TAG_FREQUENCY "freq"
 
-const int MEASUREMENTSAMPLETIME  = 5000;
+const int MEASUREMENTSAMPLETIME  = 20000;
 const int TEMPERATURE_PRECISION = 10;
-const int TEMPERATURE_RETRIES = 5;
+const int TEMPERATURE_RETRIES = 8;
 
 //#define DEBUG(...) ESP_LOGD(__func__, ...)
 const char *ntpServer = "in.pool.ntp.org";
@@ -38,7 +38,7 @@ Configuration config;
 
 const int ledChannel = 0;
 
-const uint64_t wdtTimeout = 90;  //time in sec to trigger the watchdog
+const uint64_t wdtTimeout = 200;  //time in sec to trigger the watchdog
 hw_timer_t *timer = NULL;
 std::vector<std::tuple<uint8_t, String, DallasTemperature, OneWire>> temperatures;
 
