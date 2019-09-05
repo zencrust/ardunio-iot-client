@@ -32,6 +32,8 @@ Configuration config;
 const int ledChannel = 0;
 
 const uint64_t wdtTimeout = 90;  //time in sec to trigger the watchdog
+static InputDebounce switch_pressed;
+static InputDebounce switch_pressed2;
 
 //WiFiClientSecure espClient;
 
@@ -116,7 +118,10 @@ void switch_untill_released_callback(uint8_t pinIn, unsigned long duration)
 
 void switch_released_callback(uint8_t pinIn)
 {
-    digitalWrite(config.lamp_do.pin, LOW);
+    if(switch_pressed.isReleased() && switch_pressed2.isReleased()){
+        digitalWrite(config.lamp_do.pin, LOW);
+    }
+    
     Serial.println("Switch"  + get_switch_index(pinIn)  + "Released");
     public_data(TAG_DIO, GET_MQTT_ID(pinIn), 0, false);
 }
@@ -226,8 +231,6 @@ void wait_for_ntp()
     }
 }
 
-static InputDebounce switch_pressed;
-static InputDebounce switch_pressed2;
 void setup()
 {
     Serial.begin(115200);
@@ -275,6 +278,7 @@ unsigned long last_update_time_telemetry = 0;
 void loop()
 {
     switch_pressed.process(millis());
+    switch_pressed2.process(millis());
     auto curr_time_tele = millis() - last_update_time_telemetry;
 
     if(curr_time_tele > 5000)

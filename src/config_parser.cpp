@@ -12,13 +12,14 @@ static const char* station_names[] =
     "RPS ASSEMBLY", //5
     "SSSA ASSEMBLY", //6
     "SSSPS ASSEMBLY", //7
+    "DEMO1" //8
 };
 
 // Loads the configuration from a file
 Configuration::Configuration(void)
 {
     Serial.println("loading configuration....");
-    device_id = station_names[0];
+    device_id = station_names[8];
     mqtt_server = "SmartDashboard.local";
     mqtt_port = 1883;
     mqtt_config = {
