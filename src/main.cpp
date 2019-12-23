@@ -5,12 +5,11 @@
 #include "config_parser.hpp"
 #include <ArduinoOTA.h>
 #include <IotWebConf.h>
-
+#define FIRMWARE_VERSION "v3.0"
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 
 // -- Initial password to connect to the Thing, when it creates an own Access Point.
 const char wifiInitialApPassword[] = "12345678";
-const char firmware_version[] = "v3.0";
 DNSServer dnsServer;
 WebServer server(80);
 
@@ -29,7 +28,7 @@ IotWebConfParameter configParameters[] = {
     IotWebConfParameter("MQTT Port", "mqttserverport", mqttServerportValue, sizeof(mqttServerportValue), "number", NULL, "1883"),
     IotWebConfParameter("NTP server", "ntpServerValue", ntpServerValue, sizeof(ntpServerValue), "text", NULL, "smartdashboard.local")};
 
-IotWebConf iotWebConf(getName(), &dnsServer, &server, wifiInitialApPassword, firmware_version);
+IotWebConf iotWebConf(getName(), &dnsServer, &server, wifiInitialApPassword, FIRMWARE_VERSION);
 
 void IotWebConfSetup()
 {
@@ -83,7 +82,7 @@ void handleRoot()
 
     time_t now = time(NULL);
     char current_time[20], temp[20];
-    strftime(current_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&now));
+    strftime(current_time, 20, "%b %d %Y %H:%M:%S", localtime(&now));
 
     String s = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
     s += "<title>Kit Monitor - Device</title>";
@@ -94,10 +93,27 @@ void handleRoot()
         th, td { \
             padding: 10px ; \
         } \
-        h1 {text-align:center;} \
+        header { \
+            background-color: #666; \
+            padding: 10px; \
+            text-align: center; \
+            color: white; \
+        } \
+        footer { \
+        background-color: #777; \
+        padding: 10px; \
+        position: absolute; \
+        bottom: 0; \
+        width: 100%; \
+        text-align: center; \
+        color: white; } \
+        section { \
+            padding: 20px; \
+        } \
         </style>";
-    s += "</head><body><h1>Kit Monitor Device Configuration</h1>";
-    s += "<table style=\"width:100%\">";
+    s += "</head><body><header><h1>Kit Monitor Device Configuration</h1></header>";
+    s += "<h3> Go to <a href='config'>configure page</a> to change values.</h3>";
+    s += "<section><table style=\"width:100%\">";
     s += "<tr>";
     s += "<th>Parameter</th>";
     s += "<th>Value</th>";
@@ -113,6 +129,14 @@ void handleRoot()
     s += ESP.getChipId();
     s += "</td>";
     s += "</tr>";
+
+    s += "<tr>";
+    s += "<td>Firmware build</td>";
+    s += "<td>";
+    s += FIRMWARE_VERSION ", " __DATE__  " " __TIME__;
+    s += "</td>";
+    s += "</tr>";
+    s += "<tr>";
 
     s += "<tr>";
     s += "<td>MQTT server</td>";
@@ -143,7 +167,8 @@ void handleRoot()
     s += itoa(system_get_free_heap_size(), temp, 10);
     s += "</td>";
     s += "</tr>";
-    s += "<h3> Go to <a href='config'>configure page</a> to change values.</h3>";
+    s += "</table></section>";
+    // s += "<footer><p>2019 Smart Dashboard</p></footer>";
     s += "</body></html>\n";
 
     server.send(200, "text/html", s);
