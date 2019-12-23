@@ -5,6 +5,15 @@
 #include "config_parser.hpp"
 #include <ArduinoOTA.h>
 #include <IotWebConf.h>
+
+#define FORMATTABLEROW(X, Y) \
+"<tr>" \
+"<td>" X "</td>" \
+"<td>" + \
+ String(Y) + \
+"</td>" \
+"</tr>"
+
 #define FIRMWARE_VERSION "v3.0"
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 
@@ -63,28 +72,23 @@ void webota()
       if(upload.status == UPLOAD_FILE_START){
 
         WiFiUDP::stopAll();
-        // Serial.print("#__ Update: %s\n", upload.filename);
+        Serial.println("#__ Update: " + upload.filename);
         uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
         if(!Update.begin(maxSketchSpace)){//start with max available size
-          #ifdef DEBUG_ESP_PORT 
-            Update.printError(DEBUG_ESP_PORT); 
-          #endif
+            Serial.print("# Update: not enough space to update\n");
         }
       } else if(upload.status == UPLOAD_FILE_WRITE){
-        // Serial.print("#__ .\n");
+        Serial.print("# start updating sketch ...");
         if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
-          #ifdef DEBUG_ESP_PORT 
-          Update.printError(Serial);
-          #endif
-
+            Serial.println("Update size did not match");
         }
       } else if(upload.status == UPLOAD_FILE_END){
         if(Update.end(true)){ //true to set the size to the current progress
-        //   Serial.print("#__ Update Success: %u\nRebooting...\n", upload.totalSize);
+          Serial.print("#__ Update Success: \nRebooting...\n");
         } 
       } else if(upload.status == UPLOAD_FILE_ABORTED){
         Update.end();
-        // Serial.print("#__ Update was aborted\n");
+        Serial.print("#__ Update was aborted\n");
       }
       delay(0);
     });
@@ -133,7 +137,7 @@ void handleRoot()
     }
 
     time_t now = time(NULL);
-    char current_time[20], temp[20];
+    char current_time[20];
     strftime(current_time, 20, "%b %d %Y %H:%M:%S", localtime(&now));
 
     String s = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
@@ -169,70 +173,17 @@ void handleRoot()
     s += "<th>Parameter</th>";
     s += "<th>Value</th>";
     s += "</tr>";
-    s += "<tr>";
-    s += "<td>Device Name</td>";
-    s += "<td>";
-    s += iotWebConf.getThingName();
-    s += "</td>";
-    s += "<tr>";
-    s += "<td>Serial Number</td>";
-    s += "<td>";
-    s += ESP.getChipId();
-    s += "</td>";
-    s += "</tr>";
-
-    s += "<tr>";
-    s += "<td>Firmware build</td>";
-    s += "<td>";
-    s += FIRMWARE_VERSION ", " __DATE__  " " __TIME__;
-    s += "</td>";
-    s += "</tr>";
-    s += "<tr>";
-
-    s += "<tr>";
-    s += "<td>MQTT server</td>";
-    s += "<td>";
-    s += mqttServerValue;
-    s += "</td>";
-    s += "</tr>";
-    s += "<tr>";
-    s += "<td>MQTT Port</td>";
-    s += "<td>";
-    s += mqttServerportValue;
-    s += "</td>";
-    s += "</tr>";
-    s += "<tr>";
-    s += "<td>NTP Server</td>";
-    s += "<td>";
-    s += ntpServerValue;
-    s += "</td>";
-    s += "</tr>";
-
-    s += "<tr>";
-    s += "<td>Current Time</td>";
-    s += "<td>";
-    s += current_time;
-    s += "</td>";
-    s += "</tr>";
-
-    s += "<tr>";
-    s += "<td>MQTT Subtopic</td>";
-    s += "<td>";
-    s += applicationName;
-    s += "</td>";
-    s += "</tr>";
-
-    s += "<td>Memory Available</td>";
-    s += "<td>";
-    s += itoa(system_get_free_heap_size(), temp, 10);
-    s += "</td>";
-    s += "</tr>";
-
-    s += "<td>Update Firmware</td>";
-    s += "<td>";
-    s += "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
-    s += "</td>";
-    s += "</tr>";
+    s += FORMATTABLEROW("Device Name", iotWebConf.getThingName());
+    s += FORMATTABLEROW("Serial Number", ESP.getChipId());
+    s += FORMATTABLEROW("Firmware build", FIRMWARE_VERSION ", " __DATE__  " " __TIME__);
+    s += FORMATTABLEROW("MQTT server", mqttServerValue);
+    s += FORMATTABLEROW("MQTT Port", mqttServerportValue);
+    s += FORMATTABLEROW("NTP Server", ntpServerValue);
+    s += FORMATTABLEROW("Current Time", current_time);
+    s += FORMATTABLEROW("MQTT Subtopic", applicationName);
+    s += FORMATTABLEROW("Memory Available", system_get_free_heap_size());
+    auto formdata = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+    s += FORMATTABLEROW("Update Firmware", formdata);
 
     s += "</table></section>";
     s += "<footer><h3>2019 Smart Dashboard</h3></footer>";
