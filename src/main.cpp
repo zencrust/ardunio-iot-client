@@ -28,7 +28,7 @@ IotWebConfParameter configParameters[] = {
     IotWebConfParameter("MQTT server", "mqttServer", mqttServerValue, STRING_LEN, "text", NULL, "broker.hivemq.com"),
     IotWebConfParameter("MQTT Port", "mqttserverport", mqttServerportValue, sizeof(mqttServerportValue), "number", NULL, "1883"),
     IotWebConfParameter("NTP server", "ntpServerValue", ntpServerValue, sizeof(ntpServerValue), "text", NULL, "smartdashboard.local"),
-    IotWebConfParameter("Application Name", "applicationname", applicationName, sizeof(ntpServerValue), "text", NULL, applicationName)
+    IotWebConfParameter("MQTT Subtopic", "applicationname", applicationName, sizeof(ntpServerValue), "text", NULL, applicationName)
 };
 
 IotWebConf iotWebConf(getName(), &dnsServer, &server, wifiInitialApPassword, FIRMWARE_VERSION);
@@ -39,6 +39,55 @@ void IotWebConfSetup()
     {
         iotWebConf.addParameter(&par);
     }
+
+    webota();
+}
+
+void webota()
+{
+    server.on("/update", HTTP_POST, [&](){
+      if(Update.hasError())
+      {
+          server.send(200, "text/html","Update failed");
+      }
+      else
+      {
+        server.send(200, "text/html", "Update success");
+        delay(3000);
+        ESP.restart();
+      }
+    },[&](){
+      // handler for the file upload, get's the sketch bytes, and writes
+      // them through the Update object
+      HTTPUpload& upload = server.upload();
+      if(upload.status == UPLOAD_FILE_START){
+
+        WiFiUDP::stopAll();
+        // Serial.print("#__ Update: %s\n", upload.filename);
+        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        if(!Update.begin(maxSketchSpace)){//start with max available size
+          #ifdef DEBUG_ESP_PORT 
+            Update.printError(DEBUG_ESP_PORT); 
+          #endif
+        }
+      } else if(upload.status == UPLOAD_FILE_WRITE){
+        // Serial.print("#__ .\n");
+        if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+          #ifdef DEBUG_ESP_PORT 
+          Update.printError(Serial);
+          #endif
+
+        }
+      } else if(upload.status == UPLOAD_FILE_END){
+        if(Update.end(true)){ //true to set the size to the current progress
+        //   Serial.print("#__ Update Success: %u\nRebooting...\n", upload.totalSize);
+        } 
+      } else if(upload.status == UPLOAD_FILE_ABORTED){
+        Update.end();
+        // Serial.print("#__ Update was aborted\n");
+      }
+      delay(0);
+    });
 }
 
 #define MEASUREMENTSAMPLETIME 1000
@@ -103,13 +152,12 @@ void handleRoot()
             color: white; \
         } \
         footer { \
-        background-color: #777; \
-        padding: 10px; \
-        position: absolute; \
-        bottom: 0; \
-        width: 100%; \
-        text-align: center; \
-        color: white; } \
+            text-align: center; \
+            left: 0; \
+            position: fixed; \
+            bottom: 0; \
+            width: 100%; \
+        } \
         section { \
             padding: 20px; \
         } \
@@ -159,19 +207,35 @@ void handleRoot()
     s += ntpServerValue;
     s += "</td>";
     s += "</tr>";
+
     s += "<tr>";
     s += "<td>Current Time</td>";
     s += "<td>";
     s += current_time;
     s += "</td>";
     s += "</tr>";
+
+    s += "<tr>";
+    s += "<td>MQTT Subtopic</td>";
+    s += "<td>";
+    s += applicationName;
+    s += "</td>";
+    s += "</tr>";
+
     s += "<td>Memory Available</td>";
     s += "<td>";
     s += itoa(system_get_free_heap_size(), temp, 10);
     s += "</td>";
     s += "</tr>";
+
+    s += "<td>Update Firmware</td>";
+    s += "<td>";
+    s += "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+    s += "</td>";
+    s += "</tr>";
+
     s += "</table></section>";
-    // s += "<footer><p>2019 Smart Dashboard</p></footer>";
+    s += "<footer><h3>2019 Smart Dashboard</h3></footer>";
     s += "</body></html>\n";
 
     server.send(200, "text/html", s);
