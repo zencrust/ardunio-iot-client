@@ -53,11 +53,7 @@ struct boot{
 class Configuration
 {
   public:
-    String device_id;
-    String mqtt_server;
-    uint16_t mqtt_port;
     struct mqtt_config mqtt_config;
-    struct wifi wifi;
 
     struct di switch_inp;
     struct di switch2_inp;

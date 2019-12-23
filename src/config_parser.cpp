@@ -19,17 +19,6 @@ static const char* station_names[] =
 Configuration::Configuration(void)
 {
     Serial.println("loading configuration....");
-    device_id = station_names[8];
-    mqtt_server = "SmartDashboard.local";
-    mqtt_port = 1883;
-    mqtt_config = {
-        false, "", ""
-    };
-
-    wifi = {
-        "SmartDashboard",
-        "SmartDashboard@1"
-    };
 
     boot = {
         12
