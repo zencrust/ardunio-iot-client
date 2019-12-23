@@ -22,11 +22,14 @@ const char *getName()
 char mqttServerValue[STRING_LEN];
 char mqttServerportValue[10] = "1883";
 char ntpServerValue[STRING_LEN] = {};
+char applicationName[STRING_LEN] = "partalarm";
 
 IotWebConfParameter configParameters[] = {
     IotWebConfParameter("MQTT server", "mqttServer", mqttServerValue, STRING_LEN, "text", NULL, "broker.hivemq.com"),
     IotWebConfParameter("MQTT Port", "mqttserverport", mqttServerportValue, sizeof(mqttServerportValue), "number", NULL, "1883"),
-    IotWebConfParameter("NTP server", "ntpServerValue", ntpServerValue, sizeof(ntpServerValue), "text", NULL, "smartdashboard.local")};
+    IotWebConfParameter("NTP server", "ntpServerValue", ntpServerValue, sizeof(ntpServerValue), "text", NULL, "smartdashboard.local"),
+    IotWebConfParameter("Application Name", "applicationname", applicationName, sizeof(ntpServerValue), "text", NULL, applicationName)
+};
 
 IotWebConf iotWebConf(getName(), &dnsServer, &server, wifiInitialApPassword, FIRMWARE_VERSION);
 
@@ -222,7 +225,7 @@ void public_data(String function, String channel, T value, bool retained = false
         reconnect();
     }
 
-    String topic_buf = "partalarm/" + String(iotWebConf.getThingName()) + '/' + function + '/' + channel;
+    String topic_buf = String(applicationName) + "/" + String(iotWebConf.getThingName()) + '/' + function + '/' + channel;
     client.publish(topic_buf.c_str(), String(value).c_str(), retained);
 }
 #define GET_MQTT_ID(pinIn) pinIn == config.switch_inp.pin ? config.switch_inp.mqtt_id : config.switch2_inp.mqtt_id
@@ -308,7 +311,7 @@ void reconnect()
         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         boolean result;
-        String willMessage = "partalarm/" + String(iotWebConf.getThingName()) + "/" + "heartbeat";
+        String willMessage = String(applicationName) + "/" + String(iotWebConf.getThingName()) + "/" + "heartbeat";
         if (config.mqtt_config.enable)
         {
             result = client.connect(iotWebConf.getThingName(), config.mqtt_config.user_name.c_str(),
