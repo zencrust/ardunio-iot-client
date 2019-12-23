@@ -7,12 +7,12 @@
 #include <IotWebConf.h>
 
 #define FORMATTABLEROW(X, Y) \
-"<tr>" \
-"<td>" X "</td>" \
-"<td>" + \
- String(Y) + \
-"</td>" \
-"</tr>"
+    "<tr>"                   \
+    "<td>" X "</td>"         \
+    "<td>" +                 \
+    String(Y) +              \
+    "</td>"                  \
+    "</tr>"
 
 #define FIRMWARE_VERSION "v3.0"
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
@@ -37,8 +37,7 @@ IotWebConfParameter configParameters[] = {
     IotWebConfParameter("MQTT server", "mqttServer", mqttServerValue, STRING_LEN, "text", NULL, "broker.hivemq.com"),
     IotWebConfParameter("MQTT Port", "mqttserverport", mqttServerportValue, sizeof(mqttServerportValue), "number", NULL, "1883"),
     IotWebConfParameter("NTP server", "ntpServerValue", ntpServerValue, sizeof(ntpServerValue), "text", NULL, "smartdashboard.local"),
-    IotWebConfParameter("MQTT Subtopic", "applicationname", applicationName, sizeof(ntpServerValue), "text", NULL, applicationName)
-};
+    IotWebConfParameter("MQTT Subtopic", "applicationname", applicationName, sizeof(ntpServerValue), "text", NULL, applicationName)};
 
 IotWebConf iotWebConf(getName(), &dnsServer, &server, wifiInitialApPassword, FIRMWARE_VERSION);
 
@@ -54,7 +53,7 @@ void IotWebConfSetup()
 
 void webota()
 {
-    server.on("/update", HTTP_POST, [&](){
+    server.on("/update", HTTP_POST, [&]() {
       if(Update.hasError())
       {
           server.send(200, "text/html","Update failed");
@@ -64,8 +63,7 @@ void webota()
         server.send(200, "text/html", "Update success");
         delay(3000);
         ESP.restart();
-      }
-    },[&](){
+      } }, [&]() {
       // handler for the file upload, get's the sketch bytes, and writes
       // them through the Update object
       HTTPUpload& upload = server.upload();
@@ -90,8 +88,7 @@ void webota()
         Update.end();
         Serial.print("#__ Update was aborted\n");
       }
-      delay(0);
-    });
+      delay(0); });
 }
 
 #define MEASUREMENTSAMPLETIME 1000
@@ -175,7 +172,7 @@ void handleRoot()
     s += "</tr>";
     s += FORMATTABLEROW("Device Name", iotWebConf.getThingName());
     s += FORMATTABLEROW("Serial Number", ESP.getChipId());
-    s += FORMATTABLEROW("Firmware build", FIRMWARE_VERSION ", " __DATE__  " " __TIME__);
+    s += FORMATTABLEROW("Firmware build", FIRMWARE_VERSION ", " __DATE__ " " __TIME__);
     s += FORMATTABLEROW("MQTT server", mqttServerValue);
     s += FORMATTABLEROW("MQTT Port", mqttServerportValue);
     s += FORMATTABLEROW("NTP Server", ntpServerValue);
